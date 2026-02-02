@@ -29,12 +29,23 @@ export default function PipelineBarChart({ data, onBarClick }: PipelineBarChartP
           layout="vertical"
           margin={{ top: 10, right: 40, left: 20, bottom: 10 }}
         >
-          <XAxis type="number" hide />
+          <CartesianGrid 
+            strokeDasharray="3 3" 
+            horizontal={true} 
+            vertical={true}
+            stroke="#e5e7eb"
+          />
+          <XAxis 
+            type="number"
+            axisLine={{ stroke: '#e5e7eb' }}
+            tickLine={{ stroke: '#e5e7eb' }}
+            tick={{ fontSize: 12, fill: '#94a3b8' }}
+          />
           <YAxis 
             dataKey="name" 
             type="category" 
             width={160}
-            axisLine={false}
+            axisLine={{ stroke: '#e5e7eb' }}
             tickLine={false}
             tick={{ 
               fontSize: 14, 
