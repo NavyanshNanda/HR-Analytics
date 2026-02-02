@@ -3,6 +3,8 @@
 export type ScreeningStatus = 'Cleared' | 'Not Cleared' | 'In progress' | '';
 export type InterviewStatus = 'Cleared' | 'Not Cleared' | 'Pending at R1' | 'Pending at R2' | 'Pending at R3' | '';
 export type FinalStatus = 'Rejected' | 'Selected' | 'In progress' | 'Req on hold' | 'Pending at R1' | 'Pending at R2' | 'Pending at R3' | '';
+export type DashboardCategory = 'Joined' | 'Selected' | 'Rejected' | 'Screening Reject' | 'Pending/Active' | 'Other';
+export type RejectRound = 'R1' | 'R2' | 'R3' | null;
 
 export interface CandidateRecord {
   srNo: number;
@@ -60,6 +62,8 @@ export interface CandidateRecord {
   delayInTTF: number | null;
   tth30Days: number | null;
   delayInTTH: number | null;
+  dashboardCategory: DashboardCategory;
+  rejectRound: RejectRound;
 }
 
 export interface PipelineMetrics {
@@ -82,6 +86,10 @@ export interface PipelineMetrics {
   rejected: number;
   inProgress: number;
   onHold: number;
+  // New category-based metrics
+  screeningReject: number;
+  pendingActive: number;
+  other: number;
 }
 
 export interface SourceDistributionItem {

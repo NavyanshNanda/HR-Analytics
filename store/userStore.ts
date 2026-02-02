@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { UserType, DateFilters } from '@/lib/types';
+import { UserType, DateFilters, DashboardCategory } from '@/lib/types';
 
 interface UserState {
   userType: UserType | null;
@@ -17,14 +17,22 @@ export const useUserStore = create<UserState>((set) => ({
   reset: () => set({ userType: null, userName: null }),
 }));
 
+type CategoryFilter = 'all' | 'screening-cleared' | 'interview-cleared' | 'offered' | 'joined' | DashboardCategory | null;
+
 interface FilterState {
   filters: DateFilters;
+  categoryFilter: CategoryFilter;
   setFilters: (filters: DateFilters) => void;
+  setCategoryFilter: (category: CategoryFilter) => void;
   resetFilters: () => void;
+  resetCategoryFilter: () => void;
 }
 
 export const useFilterStore = create<FilterState>((set) => ({
   filters: {},
+  categoryFilter: null,
   setFilters: (filters) => set({ filters }),
-  resetFilters: () => set({ filters: {} }),
+  setCategoryFilter: (category) => set({ categoryFilter: category }),
+  resetFilters: () => set({ filters: {}, categoryFilter: null }),
+  resetCategoryFilter: () => set({ categoryFilter: null }),
 }));
