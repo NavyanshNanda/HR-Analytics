@@ -16,6 +16,16 @@ import { filterDataForRecruiter } from './dataProcessing';
 
 // Calculate recruitment pipeline metrics
 export function calculatePipelineMetrics(data: CandidateRecord[]): PipelineMetrics {
+  // Category-based counts
+  const categoryMetrics = {
+    joined: data.filter(r => r.dashboardCategory === 'Joined').length,
+    selected: data.filter(r => r.dashboardCategory === 'Selected').length,
+    rejected: data.filter(r => r.dashboardCategory === 'Rejected').length,
+    screeningReject: data.filter(r => r.dashboardCategory === 'Screening Reject').length,
+    pendingActive: data.filter(r => r.dashboardCategory === 'Pending/Active').length,
+    other: data.filter(r => r.dashboardCategory === 'Other').length,
+  };
+
   return {
     totalCandidates: data.length,
     screeningCleared: data.filter(r => r.screeningCheckStatus === 'Cleared').length,
@@ -31,9 +41,9 @@ export function calculatePipelineMetrics(data: CandidateRecord[]): PipelineMetri
     r3NotCleared: data.filter(r => r.statusOfR3 === 'Not Cleared').length,
     r3Pending: data.filter(r => r.statusOfR3 === 'Pending at R3').length,
     offered: data.filter(r => r.offerDate !== null).length,
-    joined: data.filter(r => r.joiningDate !== null).length,
-    selected: data.filter(r => r.finalStatus === 'Selected').length,
-    rejected: data.filter(r => r.finalStatus === 'Rejected').length,
+    joined: categoryMetrics.joined,
+    selected: categoryMetrics.selected,
+    rejected: categoryMetrics.rejected,
     inProgress: data.filter(r => 
       r.finalStatus === 'In progress' || 
       r.finalStatus === 'Pending at R1' || 
@@ -41,6 +51,10 @@ export function calculatePipelineMetrics(data: CandidateRecord[]): PipelineMetri
       r.finalStatus === 'Pending at R3'
     ).length,
     onHold: data.filter(r => r.finalStatus === 'Req on hold').length,
+    // New category metrics
+    screeningReject: categoryMetrics.screeningReject,
+    pendingActive: categoryMetrics.pendingActive,
+    other: categoryMetrics.other,
   };
 }
 
@@ -49,8 +63,34 @@ export function calculateSourceDistribution(data: CandidateRecord[]): SourceDist
   const sourceMap = new Map<string, { count: number; subSources: Map<string, number> }>();
   
   data.forEach(record => {
-    const source = record.source || 'Unknown';
-    const subSource = record.subSource || 'Direct';
+    let source = (record.source || 'Unknown').trim();
+    let subSource = (record.subSource || 'Direct').trim();
+    
+    // Normalize source categories
+    const sourceLower = source.toLowerCase();
+    const subSourceLower = subSource.toLowerCase();
+    
+    // Normalize Walk-In variations
+    if (sourceLower === 'walkin' || sourceLower === 'walk-in' || sourceLower === 'walk in') {
+      source = 'Walk-In';
+    }
+    
+    // Combine Employee Referral and Referral
+    if (sourceLower === 'employee referral' || sourceLower === 'referral') {
+      source = 'Referral';
+    }
+    
+    // Move "Direct" from Unknown to Walk-In
+    if (sourceLower === 'unknown' && subSourceLower === 'direct') {
+      source = 'Walk-In';
+      subSource = 'Direct';
+    }
+    
+    // Move LinkedIn Posting to Job Site
+    if (subSourceLower.includes('linkedin')) {
+      source = 'Job Site';
+      subSource = 'LinkedIn';
+    }
     
     if (!sourceMap.has(source)) {
       sourceMap.set(source, { count: 0, subSources: new Map() });
@@ -202,7 +242,7 @@ export function getRecruitersForHM(data: CandidateRecord[]): string[] {
   const recruiters = data
     .map(r => r.recruiterName)
     .filter(r => r && r.trim() !== '');
-  return Array.from(new Set(recruiters)).sort();
+  return [...new Set(recruiters)].sort();
 }
 
 // Get all unique panelists for a hiring manager
@@ -221,7 +261,7 @@ export function getPanelistsForHM(data: CandidateRecord[]): string[] {
     }
   });
   
-  return Array.from(new Set(panelists))
+  return [...new Set(panelists)]
     .filter(p => p && p.length > 1)
     .sort();
 }
@@ -239,7 +279,56 @@ export function getFunnelData(metrics: PipelineMetrics) {
   ];
 }
 
-// Get final status data for pie chart
+// Get 5-stage pipeline data (new categorization logic)
+export function get5StagePipelineData(metrics: PipelineMetrics) {
+  // Stage calculations:
+  // 1. Total Candidates - all candidates
+  // 2. Screening Cleared = Total - Screening Rejects
+  // 3. Interview Cleared = Screening Cleared - Rejected
+  // 4. Offered = Selected
+  // 5. Joined = Joined
+  
+  const totalCandidates = metrics.totalCandidates;
+  const screeningCleared = totalCandidates - metrics.screeningReject;
+  const interviewCleared = screeningCleared - metrics.rejected;
+  const offered = metrics.selected;
+  const joined = metrics.joined;
+  
+  return [
+    { 
+      name: 'Total Candidates', 
+      value: totalCandidates, 
+      fill: '#3B82F6',
+      category: 'all' 
+    },
+    { 
+      name: 'Screening Cleared', 
+      value: screeningCleared, 
+      fill: '#8B5CF6',
+      category: 'screening-cleared' 
+    },
+    { 
+      name: 'Interview Cleared', 
+      value: interviewCleared, 
+      fill: '#EC4899',
+      category: 'interview-cleared' 
+    },
+    { 
+      name: 'Offered', 
+      value: offered, 
+      fill: '#22C55E',
+      category: 'offered' 
+    },
+    { 
+      name: 'Joined', 
+      value: joined, 
+      fill: '#10B981',
+      category: 'joined' 
+    },
+  ];
+}
+
+// Get final status data for pie chart (old version - kept for compatibility)
 export function getFinalStatusData(metrics: PipelineMetrics) {
   return [
     { name: 'Selected', value: metrics.selected, fill: '#10B981' },

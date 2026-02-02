@@ -1,6 +1,6 @@
 import Papa from 'papaparse';
 import { CandidateRecord, ScreeningStatus, InterviewStatus, FinalStatus } from './types';
-import { parseDate, parseNumber } from './utils';
+import { parseDate, parseNumber, categorizeCandidateNew } from './utils';
 
 // CSV column mapping
 const columnMapping: Record<string, keyof CandidateRecord> = {
@@ -204,7 +204,14 @@ function parseRow(row: Record<string, string>, headers: string[]): CandidateReco
     delayInTTF: parseNumber(row['Delay in TTF']),
     tth30Days: parseNumber(row['TTH (30 days)']),
     delayInTTH: parseNumber(row['Delay in TTH']),
+    dashboardCategory: 'Other', // Will be set after
+    rejectRound: null, // Will be set after
   };
+
+  // Categorize the candidate
+  const { category, rejectRound } = categorizeCandidateNew(record);
+  record.dashboardCategory = category;
+  record.rejectRound = rejectRound;
 
   return record;
 }

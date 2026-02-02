@@ -2,7 +2,9 @@ import { parse, isValid, differenceInHours } from 'date-fns';
 import { 
   CandidateRecord, 
   DateFilters,
-  InterviewRecord 
+  InterviewRecord,
+  DashboardCategory,
+  RejectRound
 } from './types';
 
 // Parse date from various formats in the CSV
@@ -311,4 +313,97 @@ export function formatDate(date: Date | null): string {
 // CN utility for class names
 export function cn(...classes: (string | undefined | null | false)[]): string {
   return classes.filter(Boolean).join(' ');
+}
+
+// Categorize candidate based on Status and Final Status columns
+export function categorizeCandidateNew(record: CandidateRecord): { 
+  category: DashboardCategory; 
+  rejectRound: RejectRound 
+} {
+  const finalStatus = (record.finalStatus || '').toLowerCase().trim();
+  const status = (record.status || '').toLowerCase().trim();
+  const statusR1 = (record.statusOfR1 || '').toLowerCase().trim();
+  const statusR2 = (record.statusOfR2 || '').toLowerCase().trim();
+  const statusR3 = (record.statusOfR3 || '').toLowerCase().trim();
+  
+  // Helper to determine rejection round
+  const determineRejectRound = (): RejectRound => {
+    if (statusR1 === 'not cleared') return 'R1';
+    if (statusR2 === 'not cleared') return 'R2';
+    if (statusR3 === 'not cleared') return 'R3';
+    return null;
+  };
+  
+  // Priority 0: If Joining Date exists, automatically mark as Joined
+  if (record.joiningDate !== null) {
+    return { category: 'Joined', rejectRound: null };
+  }
+  
+  // Step 1: Check Final Status first
+  if (finalStatus) {
+    // Final Status = Selected
+    if (finalStatus === 'selected' || finalStatus === 'yes') {
+      return { category: 'Selected', rejectRound: null };
+    }
+    
+    // Final Status = Rejected
+    if (finalStatus === 'rejected' || finalStatus.includes('reject')) {
+      const rejectRound = determineRejectRound();
+      return { category: 'Rejected', rejectRound };
+    }
+  }
+  
+  // Step 2: Final Status is empty - check Status column with priority order
+  
+  // Empty check
+  if (!status || status === 'nan') {
+    return { category: 'Pending/Active', rejectRound: null };
+  }
+  
+  // Joined check
+  if (status === 'joined' || status === 'internship letter shared') {
+    return { category: 'Joined', rejectRound: null };
+  }
+  
+  // Selected check
+  if (status === 'selected' || status === 'yes' || status === 'shortlisted') {
+    return { category: 'Selected', rejectRound: null };
+  }
+  
+  // Screening Reject check
+  if (status === 'screening reject' || status === 'rejected in technical screening') {
+    return { category: 'Screening Reject', rejectRound: null };
+  }
+  
+  // Rejected check
+  if (status.includes('rejected') || status === 'offer declined') {
+    const rejectRound = determineRejectRound();
+    
+    // Exception: If no round found and all R1/R2/R3 are empty, it's screening reject
+    if (!rejectRound && !statusR1 && !statusR2 && !statusR3) {
+      return { category: 'Screening Reject', rejectRound: null };
+    }
+    
+    return { category: 'Rejected', rejectRound };
+  }
+  
+  // Pending check
+  const pendingStatuses = [
+    'in process',
+    'under discussion',
+    'pending at r1',
+    'pending at r2',
+    'pending at r3',
+    'on hold',
+    'scheduled for r1',
+    'scheduled for r2',
+    'scheduled for r3'
+  ];
+  
+  if (pendingStatuses.some(ps => status.includes(ps))) {
+    return { category: 'Pending/Active', rejectRound: null };
+  }
+  
+  // Default: Other
+  return { category: 'Other', rejectRound: null };
 }
