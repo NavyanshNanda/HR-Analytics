@@ -4,10 +4,10 @@ import React, { useMemo, useState } from 'react';
 import { CandidateRecord } from '@/lib/types';
 import { calculatePanelistMetrics } from '@/lib/calculations';
 import { filterDataForPanellist } from '@/lib/dataProcessing';
-import { DashboardHeader } from '@/components/ui/DashboardHeader';
+import { DashboardHeader } from '@/components/layout/DashboardHeader';
 import { MetricCard, MetricCardGroup } from '@/components/ui/MetricCard';
 import { PassRateChart } from '@/components/charts/PassRateChart';
-import { AlertPanel, AlertBadge } from '@/components/ui/AlertBadge';
+import { AlertBadge } from '@/components/ui/AlertBadge';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { formatDate, formatHoursToReadable } from '@/lib/utils';
 import { 
@@ -45,6 +45,33 @@ export default function PanellistDashboard({ data, panelistName }: PanellistDash
     return metrics.interviews.filter(i => i.isAlert || i.isPendingFeedback);
   }, [metrics.interviews]);
   
+  // Format alerts for dropdown
+  const panelistAlerts = useMemo(() => {
+    return alertInterviews.map(i => ({
+      panelistName: panelistName,
+      candidateName: i.candidateName,
+      round: i.round,
+      interviewDate: i.interviewDate,
+      feedbackDate: i.feedbackDate,
+      hours: i.timeDifferenceHours,
+      isPending: i.isPendingFeedback,
+    }));
+  }, [alertInterviews, panelistName]);
+  
+  // Handle navigation to interview when alert is clicked
+  const handleAlertClick = (candidateName: string) => {
+    setSearchTerm(candidateName);
+    setRoundFilter('all');
+    setStatusFilter('all');
+    // Scroll to table
+    setTimeout(() => {
+      const tableSection = document.querySelector('#interviews-table');
+      if (tableSection) {
+        tableSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 100);
+  };
+  
   // Filter interviews for table
   const filteredInterviews = useMemo(() => {
     let filtered = metrics.interviews;
@@ -77,7 +104,10 @@ export default function PanellistDashboard({ data, panelistName }: PanellistDash
         title="Panellist Dashboard"
         subtitle={`${metrics.totalInterviews} interviews conducted`}
         userName={panelistName}
-        userType="Panellist"
+        userRole="Panellist"
+        recruiterAlerts={[]}
+        panelistAlerts={panelistAlerts}
+        onAlertClick={handleAlertClick}
       />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -111,6 +141,10 @@ export default function PanellistDashboard({ data, panelistName }: PanellistDash
               subtitle="Feedback delays"
               icon={AlertTriangle}
               color={metrics.alertCount > 0 ? 'red' : 'green'}
+              onClick={() => {
+                const bellButton = document.querySelector('[aria-label="View alerts"]') as HTMLButtonElement;
+                if (bellButton) bellButton.click();
+              }}
             />
           </MetricCardGroup>
         </section>
@@ -154,51 +188,6 @@ export default function PanellistDashboard({ data, panelistName }: PanellistDash
             passRate: metrics.passRate,
           }} />
         </section>
-        
-        {/* Alerts */}
-        {alertInterviews.length > 0 && (
-          <section className="mb-8">
-            <AlertPanel title="Feedback Alerts" count={alertInterviews.length}>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-red-700">
-                      <th className="pb-2">Candidate</th>
-                      <th className="pb-2">Round</th>
-                      <th className="pb-2">Interview Date</th>
-                      <th className="pb-2">Feedback Date</th>
-                      <th className="pb-2">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {alertInterviews.map((interview, idx) => (
-                      <tr key={idx} className="border-t border-red-200">
-                        <td className="py-2 font-medium">{interview.candidateName}</td>
-                        <td className="py-2">{interview.round}</td>
-                        <td className="py-2">{formatDate(interview.interviewDate)}</td>
-                        <td className="py-2">{formatDate(interview.feedbackDate)}</td>
-                        <td className="py-2">
-                          {interview.isPendingFeedback ? (
-                            <span className="text-yellow-600 font-medium flex items-center gap-1">
-                              <Clock className="w-4 h-4" />
-                              Pending
-                            </span>
-                          ) : (
-                            <span className="text-red-600 font-medium">
-                              {interview.timeDifferenceHours !== null 
-                                ? formatHoursToReadable(interview.timeDifferenceHours) 
-                                : 'Delayed'}
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </AlertPanel>
-          </section>
-        )}
         
         {/* Interview Status Summary */}
         <section className="mb-8">

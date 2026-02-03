@@ -10,11 +10,10 @@ import {
   calculatePipelineMetrics
 } from '@/lib/calculations';
 import { filterDataForHiringManager } from '@/lib/dataProcessing';
-import { DashboardHeader } from '@/components/ui/DashboardHeader';
+import { DashboardHeader } from '@/components/layout/DashboardHeader';
 import { MetricCard, MetricCardGroup } from '@/components/ui/MetricCard';
 import { RecruiterPerformance } from '@/components/charts/RecruiterPerformance';
 import { PanelistPerformance } from '@/components/charts/PanelistPerformance';
-import { AlertPanel } from '@/components/ui/AlertBadge';
 import { formatHoursToReadable, formatDate, is48HourAlertTriggered } from '@/lib/utils';
 import { Users, UserCheck, AlertTriangle, TrendingUp, Clock, CheckCircle } from 'lucide-react';
 
@@ -97,13 +96,22 @@ export default function HiringManagerDashboard({ data, hmName }: HiringManagerDa
   
   const totalAlerts = recruiterAlerts.length + panelistAlerts.length;
   
+  // Handle navigation to candidate when alert is clicked
+  const handleAlertClick = (candidateName: string) => {
+    // Scroll to the relevant section (can be enhanced to highlight specific candidate)
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       <DashboardHeader
         title="Hiring Manager Dashboard"
         subtitle={`Managing ${recruiters.length} recruiters and ${panelists.length} panelists`}
         userName={hmName}
-        userType="Hiring Manager"
+        userRole="Hiring Manager"
+        recruiterAlerts={recruiterAlerts}
+        panelistAlerts={panelistAlerts}
+        onAlertClick={handleAlertClick}
       />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -137,90 +145,14 @@ export default function HiringManagerDashboard({ data, hmName }: HiringManagerDa
               subtitle="48-hour violations"
               icon={AlertTriangle}
               color={totalAlerts > 0 ? 'red' : 'green'}
+              onClick={() => {
+                // Trigger bell icon click
+                const bellButton = document.querySelector('[aria-label="View alerts"]') as HTMLButtonElement;
+                if (bellButton) bellButton.click();
+              }}
             />
           </MetricCardGroup>
         </section>
-        
-        {/* Alerts Section */}
-        {recruiterAlerts.length > 0 && (
-          <section className="mb-8">
-            <AlertPanel title="Recruiter Sourcing-to-Screening Alerts" count={recruiterAlerts.length}>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-red-700">
-                      <th className="pb-2">Recruiter</th>
-                      <th className="pb-2">Candidate</th>
-                      <th className="pb-2">Sourcing Date</th>
-                      <th className="pb-2">Screening Date</th>
-                      <th className="pb-2">Delay</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {recruiterAlerts.slice(0, 5).map((alert, idx) => (
-                      <tr key={idx} className="border-t border-red-200">
-                        <td className="py-2 font-medium">{alert.recruiterName}</td>
-                        <td className="py-2">{alert.candidateName}</td>
-                        <td className="py-2">{formatDate(alert.sourcingDate)}</td>
-                        <td className="py-2">{formatDate(alert.screeningDate)}</td>
-                        <td className="py-2 font-medium text-red-600">{formatHoursToReadable(alert.hours)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {recruiterAlerts.length > 5 && (
-                  <p className="text-xs text-red-600 mt-2">
-                    +{recruiterAlerts.length - 5} more alerts
-                  </p>
-                )}
-              </div>
-            </AlertPanel>
-          </section>
-        )}
-        
-        {panelistAlerts.length > 0 && (
-          <section className="mb-8">
-            <AlertPanel title="Panellist Feedback Alerts" count={panelistAlerts.length}>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-red-700">
-                      <th className="pb-2">Panellist</th>
-                      <th className="pb-2">Candidate</th>
-                      <th className="pb-2">Round</th>
-                      <th className="pb-2">Interview Date</th>
-                      <th className="pb-2">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {panelistAlerts.slice(0, 5).map((alert, idx) => (
-                      <tr key={idx} className="border-t border-red-200">
-                        <td className="py-2 font-medium">{alert.panelistName}</td>
-                        <td className="py-2">{alert.candidateName}</td>
-                        <td className="py-2">{alert.round}</td>
-                        <td className="py-2">{formatDate(alert.interviewDate)}</td>
-                        <td className="py-2">
-                          {alert.isPending ? (
-                            <span className="text-yellow-600 font-medium">Pending</span>
-                          ) : (
-                            <span className="text-red-600 font-medium">
-                              {alert.hours !== null ? formatHoursToReadable(alert.hours) : 'Delayed'}
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {panelistAlerts.length > 5 && (
-                  <p className="text-xs text-red-600 mt-2">
-                    +{panelistAlerts.length - 5} more alerts
-                  </p>
-                )}
-              </div>
-            </AlertPanel>
-          </section>
-        )}
         
         {/* Recruiter Performance */}
         <section className="mb-8">

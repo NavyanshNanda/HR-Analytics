@@ -52,6 +52,7 @@ export function RecruitmentPipeline({ metrics }: RecruitmentPipelineProps) {
             data={data}
             layout="vertical"
             margin={{ top: 10, right: 40, left: 100, bottom: 10 }}
+            barSize={35}
           >
             <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
             <XAxis type="number" />

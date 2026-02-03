@@ -10,6 +10,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   Cell,
+  LabelList,
 } from 'recharts';
 import { PanelistMetrics } from '@/lib/types';
 
@@ -57,7 +58,7 @@ export function PassRateChart({ data }: PassRateChartProps) {
       
       <div className="h-48">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData} margin={{ top: 20, right: 20, left: 20, bottom: 10 }}>
+          <BarChart data={chartData} margin={{ top: 20, right: 20, left: 20, bottom: 10 }} barSize={40}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
             <XAxis dataKey="name" tick={{ fontSize: 12 }} />
             <YAxis 
@@ -70,6 +71,7 @@ export function PassRateChart({ data }: PassRateChartProps) {
               {chartData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.fill} />
               ))}
+              <LabelList dataKey="rate" position="center" fill="white" fontSize={12} formatter={(value: number) => `${value.toFixed(0)}%`} />
             </Bar>
           </BarChart>
         </ResponsiveContainer>

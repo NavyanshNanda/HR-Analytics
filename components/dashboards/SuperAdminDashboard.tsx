@@ -120,7 +120,7 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Key Metrics */}
         <section className="mb-8">
-          <h2 className="text-lg font-semibold text-slate-800 mb-4">Key Metrics (All 6 Categories)</h2>
+          <h2 className="text-lg font-semibold text-slate-800 mb-4">Key Metrics</h2>
           <MetricCardGroup>
             <MetricCard
               title="Total Candidates"
@@ -129,18 +129,11 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
               color="blue"
             />
             <MetricCard
-              title="Joined"
-              value={metrics.joined}
-              subtitle={`${metrics.totalCandidates > 0 ? ((metrics.joined / metrics.totalCandidates) * 100).toFixed(1) : 0}% of total`}
-              icon={UserCheck}
-              color="green"
-            />
-            <MetricCard
-              title="Selected"
-              value={metrics.selected}
-              subtitle={`${metrics.totalCandidates > 0 ? ((metrics.selected / metrics.totalCandidates) * 100).toFixed(1) : 0}% of total`}
-              icon={TrendingUp}
-              color="green"
+              title="Screening Rejected"
+              value={metrics.screeningReject}
+              subtitle={`${metrics.totalCandidates > 0 ? ((metrics.screeningReject / metrics.totalCandidates) * 100).toFixed(1) : 0}% of total`}
+              icon={UserX}
+              color="red"
             />
             <MetricCard
               title="Rejected"
@@ -150,25 +143,11 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
               color="red"
             />
             <MetricCard
-              title="Screening Reject"
-              value={metrics.screeningReject}
-              subtitle={`${metrics.totalCandidates > 0 ? ((metrics.screeningReject / metrics.totalCandidates) * 100).toFixed(1) : 0}% of total`}
-              icon={UserX}
-              color="red"
-            />
-            <MetricCard
               title="Pending/Active"
               value={metrics.pendingActive}
               subtitle="In process"
               icon={Clock}
               color="yellow"
-            />
-            <MetricCard
-              title="Other"
-              value={metrics.other}
-              subtitle="Unrecognized status"
-              icon={Users}
-              color="gray"
             />
           </MetricCardGroup>
         </section>

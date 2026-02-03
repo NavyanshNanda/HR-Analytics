@@ -13,6 +13,7 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
+  LabelList,
 } from 'recharts';
 import { SourceDistributionItem } from '@/lib/types';
 
@@ -122,7 +123,7 @@ export function SourceDistribution({ data, title = 'Source Distribution' }: Sour
               />
             </PieChart>
           ) : (
-            <BarChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 30 }}>
+            <BarChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 30 }} barSize={40}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis 
                 dataKey="source" 
@@ -147,6 +148,7 @@ export function SourceDistribution({ data, title = 'Source Distribution' }: Sour
                     strokeWidth={selectedSource === entry.source ? 2 : 0}
                   />
                 ))}
+                <LabelList dataKey="count" position="center" fill="white" fontSize={12} formatter={(value: number) => value > 0 ? value : ''} />
               </Bar>
             </BarChart>
           )}

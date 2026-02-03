@@ -10,6 +10,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   Legend,
+  LabelList,
 } from 'recharts';
 import { PanelistMetrics } from '@/lib/types';
 import { formatHoursToReadable } from '@/lib/utils';
@@ -87,7 +88,7 @@ export function PanelistPerformance({ panelists }: PanelistPerformanceProps) {
       {/* Chart */}
       <div className="h-64 mb-6">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+          <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }} barSize={40} barGap={8}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
             <XAxis 
               dataKey="name" 
@@ -99,9 +100,15 @@ export function PanelistPerformance({ panelists }: PanelistPerformanceProps) {
             <YAxis tick={{ fontSize: 12 }} />
             <Tooltip content={<CustomTooltip />} />
             <Legend />
-            <Bar dataKey="R1" fill="#3B82F6" name="R1" />
-            <Bar dataKey="R2" fill="#8B5CF6" name="R2" />
-            <Bar dataKey="R3" fill="#F97316" name="R3" />
+            <Bar dataKey="R1" fill="#3B82F6" name="R1" radius={[4, 4, 0, 0]}>
+              <LabelList dataKey="R1" position="center" fill="white" fontSize={12} formatter={(value: number) => value > 0 ? value : ''} />
+            </Bar>
+            <Bar dataKey="R2" fill="#8B5CF6" name="R2" radius={[4, 4, 0, 0]}>
+              <LabelList dataKey="R2" position="center" fill="white" fontSize={12} formatter={(value: number) => value > 0 ? value : ''} />
+            </Bar>
+            <Bar dataKey="R3" fill="#F97316" name="R3" radius={[4, 4, 0, 0]}>
+              <LabelList dataKey="R3" position="center" fill="white" fontSize={12} formatter={(value: number) => value > 0 ? value : ''} />
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>

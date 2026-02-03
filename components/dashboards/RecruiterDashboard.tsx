@@ -4,10 +4,10 @@ import React, { useMemo, useState } from 'react';
 import { CandidateRecord } from '@/lib/types';
 import { calculateRecruiterMetrics, calculateSourceDistribution } from '@/lib/calculations';
 import { filterDataForRecruiter } from '@/lib/dataProcessing';
-import { DashboardHeader } from '@/components/ui/DashboardHeader';
+import { DashboardHeader } from '@/components/layout/DashboardHeader';
 import { MetricCard, MetricCardGroup } from '@/components/ui/MetricCard';
 import { SourceDistribution } from '@/components/charts/SourceDistribution';
-import { AlertPanel, AlertBadge } from '@/components/ui/AlertBadge';
+import { AlertBadge } from '@/components/ui/AlertBadge';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { formatDate, formatHoursToReadable, is48HourAlertTriggered, calculateTimeDifferenceHours } from '@/lib/utils';
 import { Users, UserCheck, AlertTriangle, TrendingUp, Percent, Search } from 'lucide-react';
@@ -46,6 +46,30 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
     }));
   }, [recruiterData]);
   
+  // Format alerts for dropdown
+  const recruiterAlerts = useMemo(() => {
+    return alertCandidates.map(c => ({
+      recruiterName: recruiterName,
+      candidateName: c.candidateName,
+      sourcingDate: c.sourcingDate,
+      screeningDate: c.screeningDate,
+      hours: c.delayHours,
+    }));
+  }, [alertCandidates, recruiterName]);
+  
+  // Handle navigation to candidate when alert is clicked
+  const handleAlertClick = (candidateName: string) => {
+    setSearchTerm(candidateName);
+    setStatusFilter('all');
+    // Scroll to table
+    setTimeout(() => {
+      const tableSection = document.querySelector('#candidates-table');
+      if (tableSection) {
+        tableSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 100);
+  };
+  
   // Filter candidates for table
   const filteredCandidates = useMemo(() => {
     let filtered = recruiterData;
@@ -76,7 +100,10 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
         title="Recruiter Dashboard"
         subtitle={`${recruiterData.length} candidates sourced`}
         userName={recruiterName}
-        userType="Recruiter"
+        userRole="Recruiter"
+        recruiterAlerts={recruiterAlerts}
+        panelistAlerts={[]}
+        onAlertClick={handleAlertClick}
       />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -110,6 +137,10 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
               subtitle="48-hour violations"
               icon={AlertTriangle}
               color={metrics.alertCount > 0 ? 'red' : 'green'}
+              onClick={() => {
+                const bellButton = document.querySelector('[aria-label="View alerts"]') as HTMLButtonElement;
+                if (bellButton) bellButton.click();
+              }}
             />
           </MetricCardGroup>
         </section>
@@ -161,40 +192,6 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
             </div>
           </div>
         </section>
-        
-        {/* Alerts */}
-        {alertCandidates.length > 0 && (
-          <section className="mb-8">
-            <AlertPanel title="48-Hour Violation Alerts" count={alertCandidates.length}>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-red-700">
-                      <th className="pb-2">Candidate</th>
-                      <th className="pb-2">Skill</th>
-                      <th className="pb-2">Sourcing Date</th>
-                      <th className="pb-2">Screening Date</th>
-                      <th className="pb-2">Delay</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {alertCandidates.map((candidate, idx) => (
-                      <tr key={idx} className="border-t border-red-200">
-                        <td className="py-2 font-medium">{candidate.candidateName}</td>
-                        <td className="py-2">{candidate.skill}</td>
-                        <td className="py-2">{formatDate(candidate.sourcingDate)}</td>
-                        <td className="py-2">{formatDate(candidate.screeningDate)}</td>
-                        <td className="py-2 font-medium text-red-600">
-                          {formatHoursToReadable(candidate.delayHours)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </AlertPanel>
-          </section>
-        )}
         
         {/* Source Distribution */}
         <section className="mb-8">

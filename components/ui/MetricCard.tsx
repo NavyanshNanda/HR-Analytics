@@ -13,6 +13,7 @@ interface MetricCardProps {
     isPositive: boolean;
   };
   color?: 'blue' | 'green' | 'red' | 'yellow' | 'purple' | 'gray';
+  onClick?: () => void;
 }
 
 const colorClasses = {
@@ -39,10 +40,17 @@ export function MetricCard({
   subtitle, 
   icon: Icon, 
   trend,
-  color = 'blue' 
+  color = 'blue',
+  onClick 
 }: MetricCardProps) {
+  const CardWrapper = onClick ? 'button' : 'div';
+  const clickableClasses = onClick ? 'cursor-pointer hover:shadow-lg transition-shadow' : '';
+  
   return (
-    <div className="metric-card">
+    <CardWrapper 
+      className={`metric-card ${clickableClasses} ${onClick ? 'text-left w-full' : ''}`}
+      onClick={onClick}
+    >
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm font-medium text-slate-500">{title}</p>
@@ -65,7 +73,7 @@ export function MetricCard({
           </div>
         )}
       </div>
-    </div>
+    </CardWrapper>
   );
 }
 

@@ -89,7 +89,7 @@ export function RecruiterPerformance({ recruiters }: RecruiterPerformanceProps) 
       {/* Chart */}
       <div className="h-64 mb-6">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+          <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }} barSize={40}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
             <XAxis 
               dataKey="name" 
@@ -100,9 +100,15 @@ export function RecruiterPerformance({ recruiters }: RecruiterPerformanceProps) 
             />
             <YAxis tick={{ fontSize: 12 }} />
             <Tooltip content={<CustomTooltip />} />
-            <Bar dataKey="cleared" stackId="a" fill="#10B981" name="Cleared" />
-            <Bar dataKey="notCleared" stackId="a" fill="#EF4444" name="Not Cleared" />
-            <Bar dataKey="inProgress" stackId="a" fill="#F59E0B" name="In Progress" />
+            <Bar dataKey="cleared" stackId="a" fill="#10B981" name="Cleared" radius={[0, 0, 0, 0]}>
+              <LabelList dataKey="cleared" position="center" fill="white" fontSize={12} formatter={(value: number) => value > 0 ? value : ''} />
+            </Bar>
+            <Bar dataKey="notCleared" stackId="a" fill="#EF4444" name="Not Cleared" radius={[0, 0, 0, 0]}>
+              <LabelList dataKey="notCleared" position="center" fill="white" fontSize={12} formatter={(value: number) => value > 0 ? value : ''} />
+            </Bar>
+            <Bar dataKey="inProgress" stackId="a" fill="#F59E0B" name="In Progress" radius={[4, 4, 0, 0]}>
+              <LabelList dataKey="inProgress" position="center" fill="white" fontSize={12} formatter={(value: number) => value > 0 ? value : ''} />
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>
