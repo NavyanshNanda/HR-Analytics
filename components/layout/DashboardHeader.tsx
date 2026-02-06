@@ -40,11 +40,8 @@ export function DashboardHeader({
             )}
           </div>
           
-          {/* Right: Actions, Alerts, and User info */}
+          {/* Right: Alerts, User info, and Home */}
           <div className="flex items-center gap-4">
-            {/* Custom Actions */}
-            {actions}
-            
             {/* Alert Dropdown */}
             {showAlerts && (
               <AlertDropdown
@@ -80,6 +77,15 @@ export function DashboardHeader({
           </div>
         </div>
       </div>
+      
+      {/* Filter Bar - Separate row */}
+      {actions && (
+        <div className="px-6 py-3 border-t border-slate-100 bg-slate-50">
+          <div className="flex items-center gap-2 flex-wrap">
+            {actions}
+          </div>
+        </div>
+      )}
     </header>
   );
 }

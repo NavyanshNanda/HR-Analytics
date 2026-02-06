@@ -1,21 +1,22 @@
 'use client';
 
-import React, { useMemo } from 'react';
-import { CandidateRecord } from '@/lib/types';
+import React, { useMemo, useState } from 'react';
+import { CandidateRecord, DateFilters } from '@/lib/types';
 import { 
-  calculateRecruiterMetrics, 
   calculatePanelistMetrics,
-  getRecruitersForHM,
   getPanelistsForHM,
   calculatePipelineMetrics
 } from '@/lib/calculations';
 import { filterDataForHiringManager } from '@/lib/dataProcessing';
+import { filterByDateRange } from '@/lib/utils';
 import { DashboardHeader } from '@/components/layout/DashboardHeader';
+import { DateFilter } from '@/components/ui/DateFilter';
+import { MultiSelectFilter } from '@/components/ui/MultiSelectFilter';
+import { FilterBadge } from '@/components/ui/FilterBadge';
 import { MetricCard, MetricCardGroup } from '@/components/ui/MetricCard';
-import { RecruiterPerformance } from '@/components/charts/RecruiterPerformance';
 import { PanelistPerformance } from '@/components/charts/PanelistPerformance';
-import { formatHoursToReadable, formatDate, is48HourAlertTriggered } from '@/lib/utils';
-import { Users, UserCheck, AlertTriangle, TrendingUp, Clock, CheckCircle } from 'lucide-react';
+import { formatHoursToReadable, formatDate } from '@/lib/utils';
+import { Users, UserCheck, AlertTriangle, TrendingUp, CheckCircle, Target } from 'lucide-react';
 
 interface HiringManagerDashboardProps {
   data: CandidateRecord[];
@@ -23,55 +24,87 @@ interface HiringManagerDashboardProps {
 }
 
 export default function HiringManagerDashboard({ data, hmName }: HiringManagerDashboardProps) {
+  // State for filters
+  const [dateFilters, setDateFilters] = useState<DateFilters>({});
+  const [selectedPanelists, setSelectedPanelists] = useState<string[]>([]);
+  const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]);
+  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
+  
   // Filter data for this HM
   const hmData = useMemo(() => {
     return filterDataForHiringManager(data, hmName);
   }, [data, hmName]);
   
-  // Get unique recruiters and panelists under this HM
-  const recruiters = useMemo(() => getRecruitersForHM(hmData), [hmData]);
-  const panelists = useMemo(() => getPanelistsForHM(hmData), [hmData]);
+  // Apply all filters
+  const filteredData = useMemo(() => {
+    let result = filterByDateRange(hmData, dateFilters);
+    
+    if (selectedPanelists.length > 0) {
+      result = result.filter(r =>
+        selectedPanelists.includes(r.panelistNameR1) ||
+        selectedPanelists.includes(r.panelistNameR2) ||
+        selectedPanelists.includes(r.panelistNameR3)
+      );
+    }
+    
+    if (selectedCandidates.length > 0) {
+      result = result.filter(r => selectedCandidates.includes(r.candidateName));
+    }
+    
+    if (selectedSkills.length > 0) {
+      result = result.filter(r => selectedSkills.includes(r.skill));
+    }
+    
+    if (selectedLocations.length > 0) {
+      result = result.filter(r => selectedLocations.includes(r.location));
+    }
+    
+    return result;
+  }, [hmData, dateFilters, selectedPanelists, selectedCandidates, selectedSkills, selectedLocations]);
   
-  // Calculate metrics for each recruiter
-  const recruiterMetrics = useMemo(() => {
-    return recruiters.map(recruiter => calculateRecruiterMetrics(hmData, recruiter));
-  }, [hmData, recruiters]);
+  // Get unique values for filters
+  const allPanelists = useMemo(() => {
+    return Array.from(new Set([
+      ...hmData.map(r => r.panelistNameR1).filter(Boolean),
+      ...hmData.map(r => r.panelistNameR2).filter(Boolean),
+      ...hmData.map(r => r.panelistNameR3).filter(Boolean),
+    ])).sort();
+  }, [hmData]);
+  
+  const allCandidates = useMemo(() => {
+    return Array.from(new Set(hmData.map(r => r.candidateName).filter(Boolean))).sort();
+  }, [hmData]);
+  
+  const allSkills = useMemo(() => {
+    return Array.from(new Set(hmData.map(r => r.skill).filter(Boolean))).sort();
+  }, [hmData]);
+  
+  const allLocations = useMemo(() => {
+    return Array.from(new Set(hmData.map(r => r.location).filter(Boolean))).sort();
+  }, [hmData]);
+  
+  // Get unique panelists under this HM from filtered data
+  const panelists = useMemo(() => getPanelistsForHM(filteredData), [filteredData]);
   
   // Calculate metrics for each panelist
   const panelistMetrics = useMemo(() => {
-    return panelists.map(panelist => calculatePanelistMetrics(hmData, panelist));
-  }, [hmData, panelists]);
+    return panelists.map(panelist => calculatePanelistMetrics(filteredData, panelist));
+  }, [filteredData, panelists]);
   
   // Calculate pipeline metrics
   const pipelineMetrics = useMemo(() => {
-    return calculatePipelineMetrics(hmData);
-  }, [hmData]);
+    return calculatePipelineMetrics(filteredData);
+  }, [filteredData]);
   
-  // Get all recruiter alerts (48-hour violations)
-  const recruiterAlerts = useMemo(() => {
-    const alerts: { recruiterName: string; candidateName: string; sourcingDate: Date | null; screeningDate: Date | null; hours: number }[] = [];
-    
-    recruiterMetrics.forEach(rm => {
-      rm.candidates.forEach(candidate => {
-        if (is48HourAlertTriggered(candidate.sourcingDate, candidate.screeningDate)) {
-          const hours = candidate.sourcingDate && candidate.screeningDate 
-            ? Math.round((candidate.screeningDate.getTime() - candidate.sourcingDate.getTime()) / (1000 * 60 * 60))
-            : 0;
-          alerts.push({
-            recruiterName: rm.recruiterName,
-            candidateName: candidate.candidateName,
-            sourcingDate: candidate.sourcingDate,
-            screeningDate: candidate.screeningDate,
-            hours,
-          });
-        }
-      });
-    });
-    
-    return alerts;
-  }, [recruiterMetrics]);
+  // Calculate offer acceptance rate
+  const offerAcceptanceRate = useMemo(() => {
+    const offered = pipelineMetrics.selected;
+    const joined = pipelineMetrics.joined;
+    return offered > 0 ? ((joined / offered) * 100).toFixed(1) : '0.0';
+  }, [pipelineMetrics]);
   
-  // Get all panelist alerts (48-hour feedback violations)
+  // Get only panelist alerts (no recruiter alerts)
   const panelistAlerts = useMemo(() => {
     const alerts: { panelistName: string; candidateName: string; round: string; interviewDate: Date | null; feedbackDate: Date | null; hours: number | null; isPending: boolean }[] = [];
     
@@ -94,7 +127,7 @@ export default function HiringManagerDashboard({ data, hmName }: HiringManagerDa
     return alerts;
   }, [panelistMetrics]);
   
-  const totalAlerts = recruiterAlerts.length + panelistAlerts.length;
+  const totalAlerts = panelistAlerts.length;
   
   // Handle navigation to candidate when alert is clicked
   const handleAlertClick = (candidateName: string) => {
@@ -102,47 +135,124 @@ export default function HiringManagerDashboard({ data, hmName }: HiringManagerDa
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   
+  const activeFilterCount = selectedPanelists.length + selectedCandidates.length + selectedSkills.length + selectedLocations.length;
+  
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       <DashboardHeader
         title="Hiring Manager Dashboard"
-        subtitle={`Managing ${recruiters.length} recruiters and ${panelists.length} panelists`}
+        subtitle={`Managing ${panelists.length} panelists • ${filteredData.length} candidates`}
         userName={hmName}
         userRole="Hiring Manager"
-        recruiterAlerts={recruiterAlerts}
+        recruiterAlerts={[]}
         panelistAlerts={panelistAlerts}
         onAlertClick={handleAlertClick}
+        actions={
+          <div className="flex items-center gap-2">
+            <DateFilter
+              filters={dateFilters}
+              onChange={setDateFilters}
+              showReqDate={true}
+              showSourcingDate={true}
+              showScreeningDate={true}
+            />
+            <MultiSelectFilter
+              label="Panelists"
+              options={allPanelists}
+              selected={selectedPanelists}
+              onChange={setSelectedPanelists}
+              placeholder="Filter by panelist"
+            />
+            <MultiSelectFilter
+              label="Skills"
+              options={allSkills}
+              selected={selectedSkills}
+              onChange={setSelectedSkills}
+              placeholder="Filter by skill"
+            />
+            <MultiSelectFilter
+              label="Candidates"
+              options={allCandidates}
+              selected={selectedCandidates}
+              onChange={setSelectedCandidates}
+              placeholder="Filter by candidate"
+            />
+            <MultiSelectFilter
+              label="Locations"
+              options={allLocations}
+              selected={selectedLocations}
+              onChange={setSelectedLocations}
+              placeholder="Filter by location"
+            />
+          </div>
+        }
       />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Filter Badges */}
+        {activeFilterCount > 0 && (
+          <section className="mb-6">
+            <div className="flex items-center gap-2 flex-wrap">
+              {selectedPanelists.length > 0 && (
+                <FilterBadge
+                  label="Panelists"
+                  count={selectedPanelists.length}
+                  onClear={() => setSelectedPanelists([])}
+                />
+              )}
+              {selectedSkills.length > 0 && (
+                <FilterBadge
+                  label="Skills"
+                  count={selectedSkills.length}
+                  onClear={() => setSelectedSkills([])}
+                />
+              )}
+              {selectedCandidates.length > 0 && (
+                <FilterBadge
+                  label="Candidates"
+                  count={selectedCandidates.length}
+                  onClear={() => setSelectedCandidates([])}
+                />
+              )}
+              {selectedLocations.length > 0 && (
+                <FilterBadge
+                  label="Locations"
+                  count={selectedLocations.length}
+                  onClear={() => setSelectedLocations([])}
+                />
+              )}
+            </div>
+          </section>
+        )}
+        
         {/* Key Metrics */}
         <section className="mb-8">
           <h2 className="text-lg font-semibold text-slate-800 mb-4">Overview</h2>
           <MetricCardGroup>
             <MetricCard
               title="Total Candidates"
-              value={hmData.length}
+              value={filteredData.length}
               icon={Users}
               color="blue"
             />
             <MetricCard
               title="Selected"
               value={pipelineMetrics.selected}
-              subtitle={`${hmData.length > 0 ? ((pipelineMetrics.selected / hmData.length) * 100).toFixed(1) : 0}% conversion`}
+              subtitle={`${filteredData.length > 0 ? ((pipelineMetrics.selected / filteredData.length) * 100).toFixed(1) : 0}% conversion`}
               icon={UserCheck}
               color="green"
             />
             <MetricCard
-              title="Recruiters"
-              value={recruiters.length}
-              subtitle="Active recruiters"
-              icon={Users}
+              title="Offer Acceptance"
+              value={`${offerAcceptanceRate}%`}
+              subtitle={`${pipelineMetrics.joined} joined of ${pipelineMetrics.selected} offered`}
+              icon={Target}
               color="purple"
             />
             <MetricCard
               title="Alerts"
               value={totalAlerts}
-              subtitle="48-hour violations"
+              subtitle="Feedback delays"
               icon={AlertTriangle}
               color={totalAlerts > 0 ? 'red' : 'green'}
               onClick={() => {
@@ -154,11 +264,6 @@ export default function HiringManagerDashboard({ data, hmName }: HiringManagerDa
           </MetricCardGroup>
         </section>
         
-        {/* Recruiter Performance */}
-        <section className="mb-8">
-          <RecruiterPerformance recruiters={recruiterMetrics} />
-        </section>
-        
         {/* Panellist Performance */}
         <section className="mb-8">
           <PanelistPerformance panelists={panelistMetrics} />
@@ -167,21 +272,7 @@ export default function HiringManagerDashboard({ data, hmName }: HiringManagerDa
         {/* Quick Stats */}
         <section>
           <h2 className="text-lg font-semibold text-slate-800 mb-4">Quick Stats</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="dashboard-card text-center">
-              <p className="text-3xl font-bold text-blue-600">
-                {recruiterMetrics.reduce((sum, r) => sum + r.candidatesSourced, 0)}
-              </p>
-              <p className="text-sm text-slate-500 mt-1">Total Sourced</p>
-            </div>
-            <div className="dashboard-card text-center">
-              <p className="text-3xl font-bold text-green-600">
-                {recruiterMetrics.length > 0 
-                  ? (recruiterMetrics.reduce((sum, r) => sum + r.screeningRate, 0) / recruiterMetrics.length).toFixed(1)
-                  : 0}%
-              </p>
-              <p className="text-sm text-slate-500 mt-1">Avg Screening Rate</p>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="dashboard-card text-center">
               <p className="text-3xl font-bold text-purple-600">
                 {panelistMetrics.reduce((sum, p) => sum + p.totalInterviews, 0)}
@@ -195,6 +286,12 @@ export default function HiringManagerDashboard({ data, hmName }: HiringManagerDa
                   : 0}%
               </p>
               <p className="text-sm text-slate-500 mt-1">Avg Pass Rate</p>
+            </div>
+            <div className="dashboard-card text-center">
+              <p className="text-3xl font-bold text-green-600">
+                {panelistMetrics.reduce((sum, p) => sum + p.passedInterviews, 0)}
+              </p>
+              <p className="text-sm text-slate-500 mt-1">Interviews Cleared</p>
             </div>
           </div>
         </section>

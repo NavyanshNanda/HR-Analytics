@@ -19,6 +19,9 @@ import {
   Search,
   Filter
 } from 'lucide-react';
+import { DateFilter, DateFilters } from '@/components/ui/DateFilter';
+import { MultiSelectFilter } from '@/components/ui/MultiSelectFilter';
+import { FilterBadge } from '@/components/ui/FilterBadge';
 
 interface PanellistDashboardProps {
   data: CandidateRecord[];
@@ -29,18 +32,80 @@ export default function PanellistDashboard({ data, panelistName }: PanellistDash
   const [searchTerm, setSearchTerm] = useState('');
   const [roundFilter, setRoundFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [filters, setFilters] = useState<DateFilters>({
+    reqDateFrom: '',
+    reqDateTo: '',
+    sourcingDateFrom: '',
+    sourcingDateTo: '',
+    screeningDateFrom: '',
+    screeningDateTo: '',
+  });
+  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]);
+  const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
   
   // Filter data for this panelist
   const panelistData = useMemo(() => {
     return filterDataForPanellist(data, panelistName);
   }, [data, panelistName]);
   
-  // Calculate metrics
-  const metrics = useMemo(() => {
-    return calculatePanelistMetrics(data, panelistName);
-  }, [data, panelistName]);
+  // Get all unique options for filters
+  const allSkills = useMemo(() => {
+    const skills = new Set<string>();
+    panelistData.forEach(r => {
+      if (r.skillSet) skills.add(r.skillSet);
+    });
+    return Array.from(skills).sort();
+  }, [panelistData]);
+
+  const allCandidates = useMemo(() => {
+    return Array.from(new Set(panelistData.map(r => r.candidateName))).sort();
+  }, [panelistData]);
+
+  const allLocations = useMemo(() => {
+    const locations = new Set<string>();
+    panelistData.forEach(r => {
+      if (r.currentLocation) locations.add(r.currentLocation);
+    });
+    return Array.from(locations).sort();
+  }, [panelistData]);
   
-  // Get interviews with alerts
+  // Apply all filters
+  const filteredData = useMemo(() => {
+    return panelistData.filter(record => {
+      // Date filters
+      if (filters.reqDateFrom && record.reqDate < filters.reqDateFrom) return false;
+      if (filters.reqDateTo && record.reqDate > filters.reqDateTo) return false;
+      if (filters.sourcingDateFrom && record.sourcingDate < filters.sourcingDateFrom) return false;
+      if (filters.sourcingDateTo && record.sourcingDate > filters.sourcingDateTo) return false;
+      if (filters.screeningDateFrom && (!record.screeningDate || record.screeningDate < filters.screeningDateFrom)) return false;
+      if (filters.screeningDateTo && (!record.screeningDate || record.screeningDate > filters.screeningDateTo)) return false;
+      
+      // Skill filter
+      if (selectedSkills.length > 0 && !selectedSkills.includes(record.skillSet)) return false;
+      
+      // Candidate filter
+      if (selectedCandidates.length > 0 && !selectedCandidates.includes(record.candidateName)) return false;
+      
+      // Location filter
+      if (selectedLocations.length > 0 && (!record.currentLocation || !selectedLocations.includes(record.currentLocation))) return false;
+      
+      return true;
+    });
+  }, [panelistData, filters, selectedSkills, selectedCandidates, selectedLocations]);
+  
+  // Active filter count
+  const activeFilterCount = 
+    selectedSkills.length +
+    selectedCandidates.length +
+    selectedLocations.length;
+  
+  // Calculate metrics from filtered data
+  const metrics = useMemo(() => {
+    return calculatePanelistMetrics(filteredData, panelistName);
+  }, [filteredData, panelistName]);
+  
+  // Get interviews with alerts from filtered data
   const alertInterviews = useMemo(() => {
     return metrics.interviews.filter(i => i.isAlert || i.isPendingFeedback);
   }, [metrics.interviews]);
@@ -108,9 +173,68 @@ export default function PanellistDashboard({ data, panelistName }: PanellistDash
         recruiterAlerts={[]}
         panelistAlerts={panelistAlerts}
         onAlertClick={handleAlertClick}
+        actions={
+          <div className="flex items-center gap-2">
+            <DateFilter
+              filters={filters}
+              onChange={setFilters}
+              showReqDate={true}
+              showSourcingDate={true}
+              showScreeningDate={true}
+            />
+            <MultiSelectFilter
+              label="Skills"
+              options={allSkills}
+              selected={selectedSkills}
+              onChange={setSelectedSkills}
+              placeholder="Filter by skill"
+            />
+            <MultiSelectFilter
+              label="Candidates"
+              options={allCandidates}
+              selected={selectedCandidates}
+              onChange={setSelectedCandidates}
+              placeholder="Filter by candidate"
+            />
+            <MultiSelectFilter
+              label="Locations"
+              options={allLocations}
+              selected={selectedLocations}
+              onChange={setSelectedLocations}
+              placeholder="Filter by location"
+            />
+          </div>
+        }
       />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Filter Badges */}
+        {activeFilterCount > 0 && (
+          <div className="mb-6 flex flex-wrap gap-2">
+            {selectedSkills.length > 0 && (
+              <FilterBadge
+                label="Skills"
+                count={selectedSkills.length}
+                onClear={() => setSelectedSkills([])}
+              />
+            )}
+            {selectedCandidates.length > 0 && (
+              <FilterBadge
+                label="Candidates"
+                count={selectedCandidates.length}
+                onClear={() => setSelectedCandidates([])}
+              />
+            )}
+            {selectedLocations.length > 0 && (
+              <FilterBadge
+                label="Locations"
+                count={selectedLocations.length}
+                onClear={() => setSelectedLocations([])}
+              />
+            )}
+          </div>
+        )}
+        
         {/* Key Metrics */}
         <section className="mb-8">
           <h2 className="text-lg font-semibold text-slate-800 mb-4">My Performance</h2>

@@ -2,17 +2,20 @@
 
 import React, { useState, useMemo, useRef } from 'react';
 import { CandidateRecord, DateFilters, DashboardCategory } from '@/lib/types';
-import { calculatePipelineMetrics, calculateSourceDistribution, get5StagePipelineData } from '@/lib/calculations';
-import { filterByDateRange } from '@/lib/utils';
+import { calculatePipelineMetrics, calculateSourceDistribution, get5StagePipelineData, getRecruitersForHM, getPanelistsForHM, calculateRecruiterMetrics, calculatePanelistMetrics } from '@/lib/calculations';
+import { filterByDateRange, is48HourAlertTriggered, calculateTimeDifferenceHours, formatDate, formatHoursToReadable } from '@/lib/utils';
 import { useFilterStore } from '@/store/userStore';
-import { DashboardHeader } from '@/components/ui/DashboardHeader';
+import { DashboardHeader as OldDashboardHeader } from '@/components/ui/DashboardHeader';
+import { DashboardHeader } from '@/components/layout/DashboardHeader';
 import { DateFilter } from '@/components/ui/DateFilter';
+import { MultiSelectFilter } from '@/components/ui/MultiSelectFilter';
+import { FilterBadge } from '@/components/ui/FilterBadge';
 import { MetricCard, MetricCardGroup } from '@/components/ui/MetricCard';
 import PipelineBarChart from '@/components/charts/PipelineBarChart';
 import { SourceDistribution } from '@/components/charts/SourceDistribution';
 import { FinalStatusBreakdown } from '@/components/charts/FinalStatusBreakdown';
 import { StatusBadge } from '@/components/ui/StatusBadge';
-import { Users, UserCheck, UserX, Clock, TrendingUp, Calendar, Filter as FilterIcon, X } from 'lucide-react';
+import { Users, UserCheck, UserX, Clock, TrendingUp, Calendar, Filter as FilterIcon, X, AlertTriangle } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 
 interface SuperAdminDashboardProps {
@@ -21,6 +24,12 @@ interface SuperAdminDashboardProps {
 
 export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) {
   const [filters, setFilters] = useState<DateFilters>({});
+  const [selectedHMs, setSelectedHMs] = useState<string[]>([]);
+  const [selectedRecruiters, setSelectedRecruiters] = useState<string[]>([]);
+  const [selectedPanelists, setSelectedPanelists] = useState<string[]>([]);
+  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]);
+  const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const candidatesPerPage = 25;
   const { categoryFilter, setCategoryFilter, resetCategoryFilter } = useFilterStore();
@@ -28,6 +37,35 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
   
   const filteredData = useMemo(() => {
     let result = filterByDateRange(data, filters);
+    
+    // Apply additional filters
+    if (selectedHMs.length > 0) {
+      result = result.filter(r => selectedHMs.includes(r.hmDetails));
+    }
+    
+    if (selectedRecruiters.length > 0) {
+      result = result.filter(r => selectedRecruiters.includes(r.recruiterName));
+    }
+    
+    if (selectedPanelists.length > 0) {
+      result = result.filter(r =>
+        selectedPanelists.includes(r.panelistNameR1) ||
+        selectedPanelists.includes(r.panelistNameR2) ||
+        selectedPanelists.includes(r.panelistNameR3)
+      );
+    }
+    
+    if (selectedSkills.length > 0) {
+      result = result.filter(r => selectedSkills.includes(r.skill));
+    }
+    
+    if (selectedCandidates.length > 0) {
+      result = result.filter(r => selectedCandidates.includes(r.candidateName));
+    }
+    
+    if (selectedLocations.length > 0) {
+      result = result.filter(r => selectedLocations.includes(r.currentLocation));
+    }
     
     // Apply category filter
     if (categoryFilter) {
@@ -56,13 +94,41 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
     }
     
     return result;
-  }, [data, filters, categoryFilter]);
+  }, [data, filters, selectedHMs, selectedRecruiters, selectedPanelists, selectedSkills, selectedCandidates, selectedLocations, categoryFilter]);
+  
+  // Get unique values for filters
+  const allHMs = useMemo(() => {
+    return Array.from(new Set(data.map(r => r.hmDetails).filter(Boolean))).sort();
+  }, [data]);
+  
+  const allRecruiters = useMemo(() => {
+    return Array.from(new Set(data.map(r => r.recruiterName).filter(Boolean))).sort();
+  }, [data]);
+  
+  const allPanelists = useMemo(() => {
+    return Array.from(new Set([
+      ...data.map(r => r.panelistNameR1).filter(Boolean),
+      ...data.map(r => r.panelistNameR2).filter(Boolean),
+      ...data.map(r => r.panelistNameR3).filter(Boolean),
+    ])).sort();
+  }, [data]);
+  
+  const allSkills = useMemo(() => {
+    return Array.from(new Set(data.map(r => r.skill).filter(Boolean))).sort();
+  }, [data]);
+  
+  const allCandidates = useMemo(() => {
+    return Array.from(new Set(data.map(r => r.candidateName).filter(Boolean))).sort();
+  }, [data]);
+  
+  const allLocations = useMemo(() => {
+    return Array.from(new Set(data.map(r => r.currentLocation).filter(Boolean))).sort();
+  }, [data]);
   
   const metrics = useMemo(() => {
-    // Always calculate metrics from full filtered data (without category filter)
-    const baseFiltered = filterByDateRange(data, filters);
-    return calculatePipelineMetrics(baseFiltered);
-  }, [data, filters]);
+    // Always calculate metrics from filtered data
+    return calculatePipelineMetrics(filteredData);
+  }, [filteredData]);
   
   const pipelineData = useMemo(() => {
     return get5StagePipelineData(metrics);
@@ -71,6 +137,129 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
   const sourceDistribution = useMemo(() => {
     return calculateSourceDistribution(filteredData);
   }, [filteredData]);
+  
+  // Calculate all recruiter alerts (48-hour violations)
+  const recruiterAlerts = useMemo(() => {
+    let baseFiltered = filterByDateRange(data, filters);
+    
+    // Apply additional filters
+    if (selectedHMs.length > 0) {
+      baseFiltered = baseFiltered.filter(r => selectedHMs.includes(r.hmDetails));
+    }
+    if (selectedRecruiters.length > 0) {
+      baseFiltered = baseFiltered.filter(r => selectedRecruiters.includes(r.recruiterName));
+    }
+    if (selectedPanelists.length > 0) {
+      baseFiltered = baseFiltered.filter(r =>
+        selectedPanelists.includes(r.panelistNameR1) ||
+        selectedPanelists.includes(r.panelistNameR2) ||
+        selectedPanelists.includes(r.panelistNameR3)
+      );
+    }
+    if (selectedSkills.length > 0) {
+      baseFiltered = baseFiltered.filter(r => selectedSkills.includes(r.skill));
+    }
+    if (selectedCandidates.length > 0) {
+      baseFiltered = baseFiltered.filter(r => selectedCandidates.includes(r.candidateName));
+    }
+    if (selectedLocations.length > 0) {
+      baseFiltered = baseFiltered.filter(r => selectedLocations.includes(r.currentLocation));
+    }
+    
+    const alerts: { recruiterName: string; candidateName: string; sourcingDate: Date | null; screeningDate: Date | null; hours: number }[] = [];
+    
+    // Get all unique recruiters
+    const recruiters = Array.from(new Set(baseFiltered.map(r => r.recruiterName).filter(Boolean)));
+    
+    recruiters.forEach(recruiterName => {
+      const recruiterData = baseFiltered.filter(r => r.recruiterName === recruiterName);
+      recruiterData.forEach(candidate => {
+        if (is48HourAlertTriggered(candidate.sourcingDate, candidate.screeningDate)) {
+          const hours = calculateTimeDifferenceHours(candidate.sourcingDate, candidate.screeningDate) || 0;
+          alerts.push({
+            recruiterName,
+            candidateName: candidate.candidateName,
+            sourcingDate: candidate.sourcingDate,
+            screeningDate: candidate.screeningDate,
+            hours,
+          });
+        }
+      });
+    });
+    
+    return alerts;
+  }, [data, filters, selectedHMs, selectedRecruiters, selectedPanelists, selectedSkills, selectedCandidates, selectedLocations]);
+  
+  // Calculate all panelist alerts (feedback delays)
+  const panelistAlerts = useMemo(() => {
+    let baseFiltered = filterByDateRange(data, filters);
+    
+    // Apply additional filters
+    if (selectedHMs.length > 0) {
+      baseFiltered = baseFiltered.filter(r => selectedHMs.includes(r.hmDetails));
+    }
+    if (selectedRecruiters.length > 0) {
+      baseFiltered = baseFiltered.filter(r => selectedRecruiters.includes(r.recruiterName));
+    }
+    if (selectedPanelists.length > 0) {
+      baseFiltered = baseFiltered.filter(r =>
+        selectedPanelists.includes(r.panelistNameR1) ||
+        selectedPanelists.includes(r.panelistNameR2) ||
+        selectedPanelists.includes(r.panelistNameR3)
+      );
+    }
+    if (selectedSkills.length > 0) {
+      baseFiltered = baseFiltered.filter(r => selectedSkills.includes(r.skill));
+    }
+    if (selectedCandidates.length > 0) {
+      baseFiltered = baseFiltered.filter(r => selectedCandidates.includes(r.candidateName));
+    }
+    if (selectedLocations.length > 0) {
+      baseFiltered = baseFiltered.filter(r => selectedLocations.includes(r.currentLocation));
+    }
+    
+    const alerts: { panelistName: string; candidateName: string; round: string; interviewDate: Date | null; feedbackDate: Date | null; hours: number | null; isPending: boolean }[] = [];
+    
+    // Get all unique panelists
+    const panelists = Array.from(new Set([
+      ...baseFiltered.map(r => r.panelistNameR1).filter(Boolean),
+      ...baseFiltered.map(r => r.panelistNameR2).filter(Boolean),
+      ...baseFiltered.map(r => r.panelistNameR3).filter(Boolean),
+    ]));
+    
+    panelists.forEach(panelistName => {
+      const panelistMetrics = calculatePanelistMetrics(baseFiltered, panelistName);
+      panelistMetrics.interviews.forEach(interview => {
+        if (interview.isAlert || interview.isPendingFeedback) {
+          alerts.push({
+            panelistName,
+            candidateName: interview.candidateName,
+            round: interview.round,
+            interviewDate: interview.interviewDate,
+            feedbackDate: interview.feedbackDate,
+            hours: interview.timeDifferenceHours,
+            isPending: interview.isPendingFeedback,
+          });
+        }
+      });
+    });
+    
+    return alerts;
+  }, [data, filters, selectedHMs, selectedRecruiters, selectedPanelists, selectedSkills, selectedCandidates, selectedLocations]);
+  
+  const totalAlerts = recruiterAlerts.length + panelistAlerts.length;
+  const activeFilterCount = selectedHMs.length + selectedRecruiters.length + selectedPanelists.length + selectedSkills.length + selectedCandidates.length + selectedLocations.length;
+  
+  // Handle navigation to candidate when alert is clicked
+  const handleAlertClick = (candidateName: string) => {
+    // Filter to show this candidate
+    resetCategoryFilter();
+    setCurrentPage(1);
+    // Scroll to table
+    setTimeout(() => {
+      candidateTableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+  };
   
   const handleBarClick = (category: string) => {
     setCategoryFilter(category as any);
@@ -105,19 +294,115 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
       <DashboardHeader
         title="Super Admin Dashboard"
         subtitle="Complete overview of recruitment analytics"
-        userType="Super Admin"
+        userName="Super Admin"
+        userRole="Super Admin"
+        recruiterAlerts={recruiterAlerts}
+        panelistAlerts={panelistAlerts}
+        onAlertClick={handleAlertClick}
         actions={
-          <DateFilter
-            filters={filters}
-            onChange={setFilters}
-            showReqDate={true}
-            showSourcingDate={true}
-            showScreeningDate={true}
-          />
+          <div className="flex items-center gap-2">
+            <DateFilter
+              filters={filters}
+              onChange={setFilters}
+              showReqDate={true}
+              showSourcingDate={true}
+              showScreeningDate={true}
+            />
+            <MultiSelectFilter
+              label="HMs"
+              options={allHMs}
+              selected={selectedHMs}
+              onChange={setSelectedHMs}
+              placeholder="Filter by HM"
+            />
+            <MultiSelectFilter
+              label="Recruiters"
+              options={allRecruiters}
+              selected={selectedRecruiters}
+              onChange={setSelectedRecruiters}
+              placeholder="Filter by recruiter"
+            />
+            <MultiSelectFilter
+              label="Panelists"
+              options={allPanelists}
+              selected={selectedPanelists}
+              onChange={setSelectedPanelists}
+              placeholder="Filter by panelist"
+            />
+            <MultiSelectFilter
+              label="Skills"
+              options={allSkills}
+              selected={selectedSkills}
+              onChange={setSelectedSkills}
+              placeholder="Filter by skill"
+            />
+            <MultiSelectFilter
+              label="Candidates"
+              options={allCandidates}
+              selected={selectedCandidates}
+              onChange={setSelectedCandidates}
+              placeholder="Filter by candidate"
+            />
+            <MultiSelectFilter
+              label="Locations"
+              options={allLocations}
+              selected={selectedLocations}
+              onChange={setSelectedLocations}
+              placeholder="Filter by location"
+            />
+          </div>
         }
       />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Filter Badges */}
+        {activeFilterCount > 0 && (
+          <div className="mb-6 flex flex-wrap gap-2">
+            {selectedHMs.length > 0 && (
+              <FilterBadge
+                label="HMs"
+                count={selectedHMs.length}
+                onClear={() => setSelectedHMs([])}
+              />
+            )}
+            {selectedRecruiters.length > 0 && (
+              <FilterBadge
+                label="Recruiters"
+                count={selectedRecruiters.length}
+                onClear={() => setSelectedRecruiters([])}
+              />
+            )}
+            {selectedPanelists.length > 0 && (
+              <FilterBadge
+                label="Panelists"
+                count={selectedPanelists.length}
+                onClear={() => setSelectedPanelists([])}
+              />
+            )}
+            {selectedSkills.length > 0 && (
+              <FilterBadge
+                label="Skills"
+                count={selectedSkills.length}
+                onClear={() => setSelectedSkills([])}
+              />
+            )}
+            {selectedCandidates.length > 0 && (
+              <FilterBadge
+                label="Candidates"
+                count={selectedCandidates.length}
+                onClear={() => setSelectedCandidates([])}
+              />
+            )}
+            {selectedLocations.length > 0 && (
+              <FilterBadge
+                label="Locations"
+                count={selectedLocations.length}
+                onClear={() => setSelectedLocations([])}
+              />
+            )}
+          </div>
+        )}
+        
         {/* Key Metrics */}
         <section className="mb-8">
           <h2 className="text-lg font-semibold text-slate-800 mb-4">Key Metrics</h2>
@@ -148,6 +433,17 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
               subtitle="In process"
               icon={Clock}
               color="yellow"
+            />
+            <MetricCard
+              title="Alerts"
+              value={totalAlerts}
+              subtitle="48-hour violations"
+              icon={AlertTriangle}
+              color={totalAlerts > 0 ? 'red' : 'green'}
+              onClick={() => {
+                const bellButton = document.querySelector('[aria-label="View alerts"]') as HTMLButtonElement;
+                if (bellButton) bellButton.click();
+              }}
             />
           </MetricCardGroup>
         </section>
@@ -268,6 +564,122 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
         <section className="mb-8">
           <SourceDistribution data={sourceDistribution} />
         </section>
+        
+        {/* Alerts Section */}
+        {totalAlerts > 0 && (
+          <section className="mb-8">
+            <div className="dashboard-card">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <AlertTriangle className="w-6 h-6 text-red-600" />
+                  <div>
+                    <h3 className="text-lg font-semibold text-slate-800">System Alerts</h3>
+                    <p className="text-sm text-slate-500">{totalAlerts} active alerts requiring attention</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    const bellButton = document.querySelector('[aria-label="View alerts"]') as HTMLButtonElement;
+                    if (bellButton) bellButton.click();
+                  }}
+                  className="px-4 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition-colors text-sm font-medium"
+                >
+                  View All Alerts
+                </button>
+              </div>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Recruiter Alerts */}
+                {recruiterAlerts.length > 0 && (
+                  <div className="bg-red-50 rounded-lg p-4 border border-red-200">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-2 h-2 bg-red-600 rounded-full animate-pulse"></div>
+                      <h4 className="font-semibold text-red-800">
+                        Recruiter Sourcing-to-Screening Alerts ({recruiterAlerts.length})
+                      </h4>
+                    </div>
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                      {recruiterAlerts.slice(0, 5).map((alert, idx) => (
+                        <div
+                          key={idx}
+                          className="bg-white rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                          onClick={() => handleAlertClick(alert.candidateName)}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-slate-800 truncate">{alert.candidateName}</p>
+                              <p className="text-xs text-slate-600 mt-0.5">Recruiter: {alert.recruiterName}</p>
+                              <div className="flex items-center gap-2 mt-1 text-xs text-slate-500">
+                                <span>Sourced: {formatDate(alert.sourcingDate)}</span>
+                                <span>•</span>
+                                <span>Screened: {formatDate(alert.screeningDate)}</span>
+                              </div>
+                            </div>
+                            <span className="text-xs font-semibold text-red-600 whitespace-nowrap ml-2">
+                              {formatHoursToReadable(alert.hours)}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                      {recruiterAlerts.length > 5 && (
+                        <p className="text-center text-sm text-red-600 font-medium pt-2">
+                          +{recruiterAlerts.length - 5} more alerts
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Panelist Alerts */}
+                {panelistAlerts.length > 0 && (
+                  <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-2 h-2 bg-orange-600 rounded-full animate-pulse"></div>
+                      <h4 className="font-semibold text-orange-800">
+                        Panellist Feedback Alerts ({panelistAlerts.length})
+                      </h4>
+                    </div>
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                      {panelistAlerts.slice(0, 5).map((alert, idx) => (
+                        <div
+                          key={idx}
+                          className="bg-white rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                          onClick={() => handleAlertClick(alert.candidateName)}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-slate-800 truncate">{alert.candidateName}</p>
+                              <p className="text-xs text-slate-600 mt-0.5">
+                                Panellist: {alert.panelistName} • Round: {alert.round}
+                              </p>
+                              <p className="text-xs text-slate-500 mt-1">
+                                Interview: {formatDate(alert.interviewDate)}
+                              </p>
+                            </div>
+                            {alert.isPending ? (
+                              <span className="text-xs font-semibold text-yellow-600 whitespace-nowrap ml-2">
+                                Pending
+                              </span>
+                            ) : (
+                              <span className="text-xs font-semibold text-orange-600 whitespace-nowrap ml-2">
+                                {alert.hours !== null ? formatHoursToReadable(alert.hours) : 'Delayed'}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      {panelistAlerts.length > 5 && (
+                        <p className="text-center text-sm text-orange-600 font-medium pt-2">
+                          +{panelistAlerts.length - 5} more alerts
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+        )}
         
         {/* Candidate Details Table */}
         <section className="mb-8" ref={candidateTableRef}>

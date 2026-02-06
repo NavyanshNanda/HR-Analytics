@@ -11,6 +11,9 @@ import { AlertBadge } from '@/components/ui/AlertBadge';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { formatDate, formatHoursToReadable, is48HourAlertTriggered, calculateTimeDifferenceHours } from '@/lib/utils';
 import { Users, UserCheck, AlertTriangle, TrendingUp, Percent, Search } from 'lucide-react';
+import { DateFilter, DateFilters } from '@/components/ui/DateFilter';
+import { MultiSelectFilter } from '@/components/ui/MultiSelectFilter';
+import { FilterBadge } from '@/components/ui/FilterBadge';
 
 interface RecruiterDashboardProps {
   data: CandidateRecord[];
@@ -20,31 +23,117 @@ interface RecruiterDashboardProps {
 export default function RecruiterDashboard({ data, recruiterName }: RecruiterDashboardProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [filters, setFilters] = useState<DateFilters>({
+    reqDateFrom: '',
+    reqDateTo: '',
+    sourcingDateFrom: '',
+    sourcingDateTo: '',
+    screeningDateFrom: '',
+    screeningDateTo: '',
+  });
+  const [selectedPanelists, setSelectedPanelists] = useState<string[]>([]);
+  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]);
+  const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
   
   // Filter data for this recruiter
   const recruiterData = useMemo(() => {
     return filterDataForRecruiter(data, recruiterName);
   }, [data, recruiterName]);
   
-  // Calculate metrics
-  const metrics = useMemo(() => {
-    return calculateRecruiterMetrics(data, recruiterName);
-  }, [data, recruiterName]);
-  
-  // Calculate source distribution
-  const sourceDistribution = useMemo(() => {
-    return calculateSourceDistribution(recruiterData);
+  // Get all unique options for filters
+  const allPanelists = useMemo(() => {
+    const panelists = new Set<string>();
+    recruiterData.forEach(r => {
+      if (r.panelistNameR1) panelists.add(r.panelistNameR1);
+      if (r.panelistNameR2) panelists.add(r.panelistNameR2);
+      if (r.panelistNameR3) panelists.add(r.panelistNameR3);
+      if (r.panelistNameR4) panelists.add(r.panelistNameR4);
+    });
+    return Array.from(panelists).sort();
+  }, [recruiterData]);
+
+  const allSkills = useMemo(() => {
+    const skills = new Set<string>();
+    recruiterData.forEach(r => {
+      if (r.skillSet) skills.add(r.skillSet);
+    });
+    return Array.from(skills).sort();
+  }, [recruiterData]);
+
+  const allCandidates = useMemo(() => {
+    return Array.from(new Set(recruiterData.map(r => r.candidateName))).sort();
+  }, [recruiterData]);
+
+  const allLocations = useMemo(() => {
+    const locations = new Set<string>();
+    recruiterData.forEach(r => {
+      if (r.currentLocation) locations.add(r.currentLocation);
+    });
+    return Array.from(locations).sort();
   }, [recruiterData]);
   
-  // Get candidates with alerts
+  // Apply all filters
+  const filteredData = useMemo(() => {
+    return recruiterData.filter(record => {
+      // Date filters
+      if (filters.reqDateFrom && record.reqDate < filters.reqDateFrom) return false;
+      if (filters.reqDateTo && record.reqDate > filters.reqDateTo) return false;
+      if (filters.sourcingDateFrom && record.sourcingDate < filters.sourcingDateFrom) return false;
+      if (filters.sourcingDateTo && record.sourcingDate > filters.sourcingDateTo) return false;
+      if (filters.screeningDateFrom && (!record.screeningDate || record.screeningDate < filters.screeningDateFrom)) return false;
+      if (filters.screeningDateTo && (!record.screeningDate || record.screeningDate > filters.screeningDateTo)) return false;
+      
+      // Panelist filter
+      if (selectedPanelists.length > 0) {
+        const hasPanelist = [
+          record.panelistNameR1,
+          record.panelistNameR2,
+          record.panelistNameR3,
+          record.panelistNameR4
+        ].some(p => p && selectedPanelists.includes(p));
+        if (!hasPanelist) return false;
+      }
+      
+      // Skill filter
+      if (selectedSkills.length > 0 && !selectedSkills.includes(record.skillSet)) return false;
+      
+      // Candidate filter
+      if (selectedCandidates.length > 0 && !selectedCandidates.includes(record.candidateName)) return false;
+      
+      // Location filter
+      if (selectedLocations.length > 0 && (!record.currentLocation || !selectedLocations.includes(record.currentLocation))) return false;
+      
+      return true;
+    });
+  }, [recruiterData, filters, selectedPanelists, selectedSkills, selectedCandidates, selectedLocations]);
+  
+  // Active filter count
+  const activeFilterCount = 
+    selectedPanelists.length +
+    selectedSkills.length +
+    selectedCandidates.length +
+    selectedLocations.length;
+  
+  // Calculate metrics from filtered data
+  const metrics = useMemo(() => {
+    return calculateRecruiterMetrics(filteredData, recruiterName);
+  }, [filteredData, recruiterName]);
+  
+  // Calculate source distribution from filtered data
+  const sourceDistribution = useMemo(() => {
+    return calculateSourceDistribution(filteredData);
+  }, [filteredData]);
+  
+  // Get candidates with alerts from filtered data
   const alertCandidates = useMemo(() => {
-    return recruiterData.filter(r => 
+    return filteredData.filter(r => 
       is48HourAlertTriggered(r.sourcingDate, r.screeningDate)
     ).map(r => ({
       ...r,
       delayHours: calculateTimeDifferenceHours(r.sourcingDate, r.screeningDate) || 0,
     }));
-  }, [recruiterData]);
+  }, [filteredData]);
   
   // Format alerts for dropdown
   const recruiterAlerts = useMemo(() => {
@@ -72,7 +161,7 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
   
   // Filter candidates for table
   const filteredCandidates = useMemo(() => {
-    let filtered = recruiterData;
+    let filtered = filteredData;
     
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
@@ -92,21 +181,94 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
     }
     
     return filtered;
-  }, [recruiterData, searchTerm, statusFilter]);
+  }, [filteredData, searchTerm, statusFilter]);
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       <DashboardHeader
         title="Recruiter Dashboard"
-        subtitle={`${recruiterData.length} candidates sourced`}
+        subtitle={`${filteredData.length} candidates sourced`}
         userName={recruiterName}
         userRole="Recruiter"
         recruiterAlerts={recruiterAlerts}
         panelistAlerts={[]}
         onAlertClick={handleAlertClick}
+        actions={
+          <div className="flex items-center gap-2">
+            <DateFilter
+              filters={filters}
+              onChange={setFilters}
+              showReqDate={true}
+              showSourcingDate={true}
+              showScreeningDate={true}
+            />
+            <MultiSelectFilter
+              label="Panelists"
+              options={allPanelists}
+              selected={selectedPanelists}
+              onChange={setSelectedPanelists}
+              placeholder="Filter by panelist"
+            />
+            <MultiSelectFilter
+              label="Skills"
+              options={allSkills}
+              selected={selectedSkills}
+              onChange={setSelectedSkills}
+              placeholder="Filter by skill"
+            />
+            <MultiSelectFilter
+              label="Candidates"
+              options={allCandidates}
+              selected={selectedCandidates}
+              onChange={setSelectedCandidates}
+              placeholder="Filter by candidate"
+            />
+            <MultiSelectFilter
+              label="Locations"
+              options={allLocations}
+              selected={selectedLocations}
+              onChange={setSelectedLocations}
+              placeholder="Filter by location"
+            />
+          </div>
+        }
       />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Filter Badges */}
+        {activeFilterCount > 0 && (
+          <div className="mb-6 flex flex-wrap gap-2">
+            {selectedPanelists.length > 0 && (
+              <FilterBadge
+                label="Panelists"
+                count={selectedPanelists.length}
+                onClear={() => setSelectedPanelists([])}
+              />
+            )}
+            {selectedSkills.length > 0 && (
+              <FilterBadge
+                label="Skills"
+                count={selectedSkills.length}
+                onClear={() => setSelectedSkills([])}
+              />
+            )}
+            {selectedCandidates.length > 0 && (
+              <FilterBadge
+                label="Candidates"
+                count={selectedCandidates.length}
+                onClear={() => setSelectedCandidates([])}
+              />
+            )}
+            {selectedLocations.length > 0 && (
+              <FilterBadge
+                label="Locations"
+                count={selectedLocations.length}
+                onClear={() => setSelectedLocations([])}
+              />
+            )}
+          </div>
+        )}
+        
         {/* Key Metrics */}
         <section className="mb-8">
           <h2 className="text-lg font-semibold text-slate-800 mb-4">My Performance</h2>
