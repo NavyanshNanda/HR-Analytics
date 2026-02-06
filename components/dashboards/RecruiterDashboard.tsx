@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { CandidateRecord } from '@/lib/types';
+import { CandidateRecord, DateFilters } from '@/lib/types';
 import { calculateRecruiterMetrics, calculateSourceDistribution } from '@/lib/calculations';
 import { filterDataForRecruiter } from '@/lib/dataProcessing';
 import { DashboardHeader } from '@/components/layout/DashboardHeader';
@@ -11,7 +11,7 @@ import { AlertBadge } from '@/components/ui/AlertBadge';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { formatDate, formatHoursToReadable, is48HourAlertTriggered, calculateTimeDifferenceHours } from '@/lib/utils';
 import { Users, UserCheck, AlertTriangle, TrendingUp, Percent, Search } from 'lucide-react';
-import { DateFilter, DateFilters } from '@/components/ui/DateFilter';
+import { DateFilter } from '@/components/ui/DateFilter';
 import { MultiSelectFilter } from '@/components/ui/MultiSelectFilter';
 import { FilterBadge } from '@/components/ui/FilterBadge';
 
@@ -23,14 +23,7 @@ interface RecruiterDashboardProps {
 export default function RecruiterDashboard({ data, recruiterName }: RecruiterDashboardProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [filters, setFilters] = useState<DateFilters>({
-    reqDateFrom: '',
-    reqDateTo: '',
-    sourcingDateFrom: '',
-    sourcingDateTo: '',
-    screeningDateFrom: '',
-    screeningDateTo: '',
-  });
+  const [filters, setFilters] = useState<DateFilters>({});
   const [selectedPanelists, setSelectedPanelists] = useState<string[]>([]);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]);
@@ -48,7 +41,6 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
       if (r.panelistNameR1) panelists.add(r.panelistNameR1);
       if (r.panelistNameR2) panelists.add(r.panelistNameR2);
       if (r.panelistNameR3) panelists.add(r.panelistNameR3);
-      if (r.panelistNameR4) panelists.add(r.panelistNameR4);
     });
     return Array.from(panelists).sort();
   }, [recruiterData]);
@@ -56,7 +48,7 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
   const allSkills = useMemo(() => {
     const skills = new Set<string>();
     recruiterData.forEach(r => {
-      if (r.skillSet) skills.add(r.skillSet);
+      if (r.skill) skills.add(r.skill);
     });
     return Array.from(skills).sort();
   }, [recruiterData]);
@@ -77,10 +69,10 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
   const filteredData = useMemo(() => {
     return recruiterData.filter(record => {
       // Date filters
-      if (filters.reqDateFrom && record.reqDate < filters.reqDateFrom) return false;
-      if (filters.reqDateTo && record.reqDate > filters.reqDateTo) return false;
-      if (filters.sourcingDateFrom && record.sourcingDate < filters.sourcingDateFrom) return false;
-      if (filters.sourcingDateTo && record.sourcingDate > filters.sourcingDateTo) return false;
+      if (filters.reqDateFrom && (!record.reqDate || record.reqDate < filters.reqDateFrom)) return false;
+      if (filters.reqDateTo && (!record.reqDate || record.reqDate > filters.reqDateTo)) return false;
+      if (filters.sourcingDateFrom && (!record.sourcingDate || record.sourcingDate < filters.sourcingDateFrom)) return false;
+      if (filters.sourcingDateTo && (!record.sourcingDate || record.sourcingDate > filters.sourcingDateTo)) return false;
       if (filters.screeningDateFrom && (!record.screeningDate || record.screeningDate < filters.screeningDateFrom)) return false;
       if (filters.screeningDateTo && (!record.screeningDate || record.screeningDate > filters.screeningDateTo)) return false;
       
@@ -89,14 +81,13 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
         const hasPanelist = [
           record.panelistNameR1,
           record.panelistNameR2,
-          record.panelistNameR3,
-          record.panelistNameR4
+          record.panelistNameR3
         ].some(p => p && selectedPanelists.includes(p));
         if (!hasPanelist) return false;
       }
       
       // Skill filter
-      if (selectedSkills.length > 0 && !selectedSkills.includes(record.skillSet)) return false;
+      if (selectedSkills.length > 0 && !selectedSkills.includes(record.skill)) return false;
       
       // Candidate filter
       if (selectedCandidates.length > 0 && !selectedCandidates.includes(record.candidateName)) return false;

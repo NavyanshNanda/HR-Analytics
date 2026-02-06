@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { CandidateRecord } from '@/lib/types';
+import { CandidateRecord, DateFilters } from '@/lib/types';
 import { calculatePanelistMetrics } from '@/lib/calculations';
 import { filterDataForPanellist } from '@/lib/dataProcessing';
 import { DashboardHeader } from '@/components/layout/DashboardHeader';
@@ -19,7 +19,7 @@ import {
   Search,
   Filter
 } from 'lucide-react';
-import { DateFilter, DateFilters } from '@/components/ui/DateFilter';
+import { DateFilter } from '@/components/ui/DateFilter';
 import { MultiSelectFilter } from '@/components/ui/MultiSelectFilter';
 import { FilterBadge } from '@/components/ui/FilterBadge';
 
@@ -32,14 +32,7 @@ export default function PanellistDashboard({ data, panelistName }: PanellistDash
   const [searchTerm, setSearchTerm] = useState('');
   const [roundFilter, setRoundFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [filters, setFilters] = useState<DateFilters>({
-    reqDateFrom: '',
-    reqDateTo: '',
-    sourcingDateFrom: '',
-    sourcingDateTo: '',
-    screeningDateFrom: '',
-    screeningDateTo: '',
-  });
+  const [filters, setFilters] = useState<DateFilters>({});
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]);
   const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
@@ -53,7 +46,7 @@ export default function PanellistDashboard({ data, panelistName }: PanellistDash
   const allSkills = useMemo(() => {
     const skills = new Set<string>();
     panelistData.forEach(r => {
-      if (r.skillSet) skills.add(r.skillSet);
+      if (r.skill) skills.add(r.skill);
     });
     return Array.from(skills).sort();
   }, [panelistData]);
@@ -74,15 +67,15 @@ export default function PanellistDashboard({ data, panelistName }: PanellistDash
   const filteredData = useMemo(() => {
     return panelistData.filter(record => {
       // Date filters
-      if (filters.reqDateFrom && record.reqDate < filters.reqDateFrom) return false;
-      if (filters.reqDateTo && record.reqDate > filters.reqDateTo) return false;
-      if (filters.sourcingDateFrom && record.sourcingDate < filters.sourcingDateFrom) return false;
-      if (filters.sourcingDateTo && record.sourcingDate > filters.sourcingDateTo) return false;
+      if (filters.reqDateFrom && (!record.reqDate || record.reqDate < filters.reqDateFrom)) return false;
+      if (filters.reqDateTo && (!record.reqDate || record.reqDate > filters.reqDateTo)) return false;
+      if (filters.sourcingDateFrom && (!record.sourcingDate || record.sourcingDate < filters.sourcingDateFrom)) return false;
+      if (filters.sourcingDateTo && (!record.sourcingDate || record.sourcingDate > filters.sourcingDateTo)) return false;
       if (filters.screeningDateFrom && (!record.screeningDate || record.screeningDate < filters.screeningDateFrom)) return false;
       if (filters.screeningDateTo && (!record.screeningDate || record.screeningDate > filters.screeningDateTo)) return false;
       
       // Skill filter
-      if (selectedSkills.length > 0 && !selectedSkills.includes(record.skillSet)) return false;
+      if (selectedSkills.length > 0 && !selectedSkills.includes(record.skill)) return false;
       
       // Candidate filter
       if (selectedCandidates.length > 0 && !selectedCandidates.includes(record.candidateName)) return false;

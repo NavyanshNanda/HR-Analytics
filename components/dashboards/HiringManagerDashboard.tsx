@@ -57,7 +57,7 @@ export default function HiringManagerDashboard({ data, hmName }: HiringManagerDa
     }
     
     if (selectedLocations.length > 0) {
-      result = result.filter(r => selectedLocations.includes(r.location));
+      result = result.filter(r => selectedLocations.includes(r.currentLocation));
     }
     
     return result;
@@ -81,7 +81,7 @@ export default function HiringManagerDashboard({ data, hmName }: HiringManagerDa
   }, [hmData]);
   
   const allLocations = useMemo(() => {
-    return Array.from(new Set(hmData.map(r => r.location).filter(Boolean))).sort();
+    return Array.from(new Set(hmData.map(r => r.currentLocation).filter(Boolean))).sort();
   }, [hmData]);
   
   // Get unique panelists under this HM from filtered data
