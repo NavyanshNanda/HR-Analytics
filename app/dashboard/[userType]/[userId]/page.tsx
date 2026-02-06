@@ -15,14 +15,14 @@ async function getData() {
 }
 
 interface PageProps {
-  params: {
+  params: Promise<{
     userType: string;
     userId: string;
-  };
+  }>;
 }
 
 export default async function DashboardPage({ params }: PageProps) {
-  const { userType, userId } = params;
+  const { userType, userId } = await params;
   const decodedUserId = decodeURIComponent(userId);
   const data = await getData();
   

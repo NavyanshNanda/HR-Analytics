@@ -16,6 +16,8 @@ import {
   LabelList,
 } from 'recharts';
 import { SourceDistributionItem } from '@/lib/types';
+import { ChartCard } from '@/components/ui/ChartCard';
+import { Users } from 'lucide-react';
 
 interface SourceDistributionProps {
   data: SourceDistributionItem[];
@@ -68,10 +70,12 @@ export function SourceDistribution({ data, title = 'Source Distribution' }: Sour
     : [];
   
   return (
-    <div className="dashboard-card">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="section-header mb-0">{title}</h3>
-        <div className="flex gap-1 p-1 bg-slate-100 rounded-lg">
+    <ChartCard
+      title={title}
+      icon={<Users className="w-5 h-5 text-blue-600" />}
+      variant="glass"
+      action={
+        <div className="flex gap-1 p-1 bg-slate-100/50 backdrop-blur-sm rounded-lg">
           <button
             onClick={() => setViewType('pie')}
             className={`px-3 py-1 text-sm rounded-md transition-colors ${
@@ -89,8 +93,8 @@ export function SourceDistribution({ data, title = 'Source Distribution' }: Sour
             Bar
           </button>
         </div>
-      </div>
-      
+      }
+    >
       <div className="h-72">
         <ResponsiveContainer width="100%" height="100%">
           {viewType === 'pie' ? (
@@ -179,6 +183,6 @@ export function SourceDistribution({ data, title = 'Source Distribution' }: Sour
           </div>
         </div>
       )}
-    </div>
+    </ChartCard>
   );
 }

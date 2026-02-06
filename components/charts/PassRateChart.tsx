@@ -13,6 +13,8 @@ import {
   LabelList,
 } from 'recharts';
 import { PanelistMetrics } from '@/lib/types';
+import { ChartCard } from '@/components/ui/ChartCard';
+import { TrendingUp } from 'lucide-react';
 
 interface PassRateChartProps {
   data: {
@@ -53,9 +55,11 @@ export function PassRateChart({ data }: PassRateChartProps) {
   };
   
   return (
-    <div className="dashboard-card">
-      <h3 className="section-header">Pass Rate by Round</h3>
-      
+    <ChartCard
+      title="Pass Rate by Round"
+      icon={<TrendingUp className="w-5 h-5 text-green-600" />}
+      variant="glass"
+    >
       <div className="h-48">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData} margin={{ top: 20, right: 20, left: 20, bottom: 10 }} barSize={40}>
@@ -92,6 +96,6 @@ export function PassRateChart({ data }: PassRateChartProps) {
           </div>
         ))}
       </div>
-    </div>
+    </ChartCard>
   );
 }

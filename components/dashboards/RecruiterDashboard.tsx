@@ -6,6 +6,7 @@ import { calculateRecruiterMetrics, calculateSourceDistribution } from '@/lib/ca
 import { filterDataForRecruiter } from '@/lib/dataProcessing';
 import { DashboardHeader } from '@/components/layout/DashboardHeader';
 import { MetricCard, MetricCardGroup } from '@/components/ui/MetricCard';
+import { ChartCard } from '@/components/ui/ChartCard';
 import { SourceDistribution } from '@/components/charts/SourceDistribution';
 import { AlertBadge } from '@/components/ui/AlertBadge';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -300,8 +301,10 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
         
         {/* Screening Breakdown */}
         <section className="mb-8">
-          <div className="dashboard-card">
-            <h3 className="section-header">Screening Breakdown</h3>
+          <ChartCard
+            title="Screening Breakdown"
+            variant="glass"
+          >
             <div className="grid grid-cols-3 gap-4">
               <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
                 <p className="text-3xl font-bold text-green-700">{metrics.screeningCleared}</p>
@@ -343,7 +346,7 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
                 </span>
               </p>
             </div>
-          </div>
+          </ChartCard>
         </section>
         
         {/* Source Distribution */}
@@ -353,10 +356,10 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
         
         {/* Candidate Profiles Table */}
         <section>
-          <div className="dashboard-card">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-              <h3 className="section-header mb-0">Candidate Profiles</h3>
-              
+          <ChartCard
+            title="Candidate Profiles"
+            variant="glass"
+            action={
               <div className="flex gap-3">
                 {/* Search */}
                 <div className="relative">
@@ -383,8 +386,8 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
                   <option value="alert">With Alerts</option>
                 </select>
               </div>
-            </div>
-            
+            }
+          >
             <div className="overflow-x-auto">
               <table className="data-table">
                 <thead>
@@ -445,7 +448,7 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
                 </p>
               )}
             </div>
-          </div>
+          </ChartCard>
         </section>
       </main>
     </div>
