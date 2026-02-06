@@ -11,11 +11,12 @@ import { DateFilter } from '@/components/ui/DateFilter';
 import { MultiSelectFilter } from '@/components/ui/MultiSelectFilter';
 import { FilterBadge } from '@/components/ui/FilterBadge';
 import { MetricCard, MetricCardGroup } from '@/components/ui/MetricCard';
+import { ChartCard } from '@/components/ui/ChartCard';
 import PipelineBarChart from '@/components/charts/PipelineBarChart';
 import { SourceDistribution } from '@/components/charts/SourceDistribution';
 import { FinalStatusBreakdown } from '@/components/charts/FinalStatusBreakdown';
 import { StatusBadge } from '@/components/ui/StatusBadge';
-import { Users, UserCheck, UserX, Clock, TrendingUp, Calendar, Filter as FilterIcon, X, AlertTriangle } from 'lucide-react';
+import { Users, UserCheck, UserX, Clock, TrendingUp, Calendar, Filter as FilterIcon, X, AlertTriangle, BarChart3, PieChart as PieChartIcon } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 
 interface SuperAdminDashboardProps {
@@ -452,44 +453,48 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
         <section className="mb-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Bar Chart Section */}
-            <div className="dashboard-card">
-              <h3 className="text-lg font-semibold text-slate-800 mb-4">Recruitment Pipeline</h3>
+            <ChartCard
+              title="Recruitment Pipeline"
+              icon={<BarChart3 className="w-5 h-5 text-blue-600" />}
+              variant="glass"
+            >
               <PipelineBarChart data={pipelineData} onBarClick={handleBarClick} />
               
               {/* Percentage Metrics */}
-              <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-slate-200">
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-blue-600">
+              <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-slate-200/50">
+                <div className="text-center group">
+                  <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
                     {metrics.totalCandidates > 0 
                       ? (((metrics.totalCandidates - metrics.screeningReject) / metrics.totalCandidates) * 100).toFixed(1)
                       : 0}%
                   </div>
-                  <div className="text-sm text-slate-600 mt-1">Screening Rate</div>
+                  <div className="text-sm text-slate-600 mt-1 font-medium">Screening Rate</div>
                 </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-purple-600">
+                <div className="text-center group">
+                  <div className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
                     {(metrics.totalCandidates - metrics.screeningReject) > 0
                       ? (((metrics.totalCandidates - metrics.screeningReject - metrics.rejected) / (metrics.totalCandidates - metrics.screeningReject)) * 100).toFixed(1)
                       : 0}%
                   </div>
-                  <div className="text-sm text-slate-600 mt-1">Interview to Screening</div>
+                  <div className="text-sm text-slate-600 mt-1 font-medium">Interview Success</div>
                 </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-green-600">
+                <div className="text-center group">
+                  <div className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
                     {metrics.totalCandidates > 0
                       ? ((metrics.joined / metrics.totalCandidates) * 100).toFixed(1)
                       : 0}%
                   </div>
-                  <div className="text-sm text-slate-600 mt-1">Overall Conversion</div>
+                  <div className="text-sm text-slate-600 mt-1 font-medium">Overall Conversion</div>
                 </div>
               </div>
-            </div>
+            </ChartCard>
             
             {/* Pie Chart Section */}
-            <div className="dashboard-card">
-              <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
-                <span className="text-2xl">📊</span> Status Distribution
-              </h3>
+            <ChartCard
+              title="Status Distribution"
+              icon={<PieChartIcon className="w-5 h-5 text-purple-600" />}
+              variant="glass"
+            >
               <div className="h-[340px] flex flex-col items-center justify-center">
                 <div className="relative w-full h-[280px]">
                   <ResponsiveContainer width="100%" height="100%">
@@ -556,7 +561,7 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
                   </div>
                 </div>
               </div>
-            </div>
+            </ChartCard>
           </div>
         </section>
         
@@ -568,15 +573,12 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
         {/* Alerts Section */}
         {totalAlerts > 0 && (
           <section className="mb-8">
-            <div className="dashboard-card">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <AlertTriangle className="w-6 h-6 text-red-600" />
-                  <div>
-                    <h3 className="text-lg font-semibold text-slate-800">System Alerts</h3>
-                    <p className="text-sm text-slate-500">{totalAlerts} active alerts requiring attention</p>
-                  </div>
-                </div>
+            <ChartCard
+              title="System Alerts"
+              subtitle={`${totalAlerts} active alerts requiring attention`}
+              icon={<AlertTriangle className="w-5 h-5 text-red-600" />}
+              variant="elevated"
+              action={
                 <button
                   onClick={() => {
                     const bellButton = document.querySelector('[aria-label="View alerts"]') as HTMLButtonElement;
@@ -586,8 +588,8 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
                 >
                   View All Alerts
                 </button>
-              </div>
-              
+              }
+            >
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Recruiter Alerts */}
                 {recruiterAlerts.length > 0 && (
@@ -677,7 +679,7 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
                   </div>
                 )}
               </div>
-            </div>
+            </ChartCard>
           </section>
         )}
         
@@ -831,9 +833,12 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
           <h2 className="text-lg font-semibold text-slate-800 mb-4">Interview Rounds Summary</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* R1 Summary */}
-            <div className="dashboard-card">
-              <h3 className="font-semibold text-blue-700 mb-3">Round 1</h3>
-              <div className="space-y-2">
+            <ChartCard
+              title="Round 1"
+              variant="glass"
+              className="border-l-4 border-blue-500"
+            >
+              <div className="space-y-2 pt-2">
                 <div className="flex justify-between">
                   <span className="text-slate-600">Cleared</span>
                   <span className="font-medium text-green-600">{metrics.r1Cleared}</span>
@@ -857,12 +862,15 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
                   </div>
                 </div>
               </div>
-            </div>
+            </ChartCard>
             
             {/* R2 Summary */}
-            <div className="dashboard-card">
-              <h3 className="font-semibold text-purple-700 mb-3">Round 2</h3>
-              <div className="space-y-2">
+            <ChartCard
+              title="Round 2"
+              variant="glass"
+              className="border-l-4 border-purple-500"
+            >
+              <div className="space-y-2 pt-2">
                 <div className="flex justify-between">
                   <span className="text-slate-600">Cleared</span>
                   <span className="font-medium text-green-600">{metrics.r2Cleared}</span>
@@ -886,12 +894,15 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
                   </div>
                 </div>
               </div>
-            </div>
+            </ChartCard>
             
             {/* R3 Summary */}
-            <div className="dashboard-card">
-              <h3 className="font-semibold text-orange-700 mb-3">Round 3</h3>
-              <div className="space-y-2">
+            <ChartCard
+              title="Round 3"
+              variant="glass"
+              className="border-l-4 border-orange-500"
+            >
+              <div className="space-y-2 pt-2">
                 <div className="flex justify-between">
                   <span className="text-slate-600">Cleared</span>
                   <span className="font-medium text-green-600">{metrics.r3Cleared}</span>
@@ -915,7 +926,7 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
                   </div>
                 </div>
               </div>
-            </div>
+            </ChartCard>
           </div>
         </section>
         
@@ -923,11 +934,11 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
         <section>
           <h2 className="text-lg font-semibold text-slate-800 mb-4">Offers & Joining</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="dashboard-card">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-slate-700">Offer Pipeline</h3>
-              </div>
-              <div className="space-y-4">
+            <ChartCard
+              title="Offer Pipeline"
+              variant="glass"
+            >
+              <div className="space-y-4 pt-2">
                 <div className="flex items-center gap-4">
                   <div className="w-32 text-sm text-slate-600">Offered</div>
                   <div className="flex-1">
@@ -967,11 +978,13 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
                   <p className="text-sm text-slate-500">Offer to Join Ratio</p>
                 </div>
               </div>
-            </div>
+            </ChartCard>
             
-            <div className="dashboard-card">
-              <h3 className="font-semibold text-slate-700 mb-4">Screening Summary</h3>
-              <div className="space-y-4">
+            <ChartCard
+              title="Screening Summary"
+              variant="glass"
+            >
+              <div className="space-y-4 pt-2">
                 <div className="flex items-center gap-4">
                   <div className="w-32 text-sm text-slate-600">Cleared</div>
                   <div className="flex-1">
@@ -1015,7 +1028,7 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
                   <div className="w-16 text-right font-medium text-yellow-600">{metrics.screeningInProgress}</div>
                 </div>
               </div>
-            </div>
+            </ChartCard>
           </div>
         </section>
       </main>

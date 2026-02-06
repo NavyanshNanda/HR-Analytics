@@ -273,25 +273,25 @@ export default function HiringManagerDashboard({ data, hmName }: HiringManagerDa
         <section>
           <h2 className="text-lg font-semibold text-slate-800 mb-4">Quick Stats</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="dashboard-card text-center">
-              <p className="text-3xl font-bold text-purple-600">
+            <div className="text-center p-6 rounded-2xl bg-white/70 backdrop-blur-xl shadow-[0_8px_32px_0_rgba(31,38,135,0.12)] border border-white/20 hover:shadow-[0_8px_32px_0_rgba(31,38,135,0.18)] transition-all duration-300">
+              <p className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
                 {panelistMetrics.reduce((sum, p) => sum + p.totalInterviews, 0)}
               </p>
-              <p className="text-sm text-slate-500 mt-1">Total Interviews</p>
+              <p className="text-sm text-slate-600 mt-1 font-medium">Total Interviews</p>
             </div>
-            <div className="dashboard-card text-center">
-              <p className="text-3xl font-bold text-orange-600">
+            <div className="text-center p-6 rounded-2xl bg-white/70 backdrop-blur-xl shadow-[0_8px_32px_0_rgba(31,38,135,0.12)] border border-white/20 hover:shadow-[0_8px_32px_0_rgba(31,38,135,0.18)] transition-all duration-300">
+              <p className="text-3xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
                 {panelistMetrics.length > 0 
                   ? (panelistMetrics.reduce((sum, p) => sum + p.passRate, 0) / panelistMetrics.length).toFixed(1)
                   : 0}%
               </p>
-              <p className="text-sm text-slate-500 mt-1">Avg Pass Rate</p>
+              <p className="text-sm text-slate-600 mt-1 font-medium">Avg Pass Rate</p>
             </div>
-            <div className="dashboard-card text-center">
-              <p className="text-3xl font-bold text-green-600">
+            <div className="text-center p-6 rounded-2xl bg-white/70 backdrop-blur-xl shadow-[0_8px_32px_0_rgba(31,38,135,0.12)] border border-white/20 hover:shadow-[0_8px_32px_0_rgba(31,38,135,0.18)] transition-all duration-300">
+              <p className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
                 {panelistMetrics.reduce((sum, p) => sum + p.passedInterviews, 0)}
               </p>
-              <p className="text-sm text-slate-500 mt-1">Interviews Cleared</p>
+              <p className="text-sm text-slate-600 mt-1 font-medium">Interviews Cleared</p>
             </div>
           </div>
         </section>

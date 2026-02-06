@@ -6,6 +6,7 @@ import { calculatePanelistMetrics } from '@/lib/calculations';
 import { filterDataForPanellist } from '@/lib/dataProcessing';
 import { DashboardHeader } from '@/components/layout/DashboardHeader';
 import { MetricCard, MetricCardGroup } from '@/components/ui/MetricCard';
+import { ChartCard } from '@/components/ui/ChartCard';
 import { PassRateChart } from '@/components/charts/PassRateChart';
 import { AlertBadge } from '@/components/ui/AlertBadge';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -268,8 +269,10 @@ export default function PanellistDashboard({ data, panelistName }: PanellistDash
         
         {/* Interviews by Round */}
         <section className="mb-8">
-          <div className="dashboard-card">
-            <h3 className="section-header">Interviews by Round</h3>
+          <ChartCard
+            title="Interviews by Round"
+            variant="glass"
+          >
             <div className="grid grid-cols-3 gap-4">
               <div className="text-center p-4 bg-blue-50 rounded-lg border border-blue-200">
                 <p className="text-3xl font-bold text-blue-700">{metrics.r1Interviews}</p>
@@ -293,7 +296,7 @@ export default function PanellistDashboard({ data, panelistName }: PanellistDash
                 </p>
               </div>
             </div>
-          </div>
+          </ChartCard>
         </section>
         
         {/* Pass Rate Chart */}
@@ -308,8 +311,10 @@ export default function PanellistDashboard({ data, panelistName }: PanellistDash
         
         {/* Interview Status Summary */}
         <section className="mb-8">
-          <div className="dashboard-card">
-            <h3 className="section-header">Interview Outcomes</h3>
+          <ChartCard
+            title="Interview Outcomes"
+            variant="glass"
+          >
             <div className="grid grid-cols-3 gap-4">
               <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
                 <p className="text-3xl font-bold text-green-700">{metrics.passedInterviews}</p>
@@ -342,15 +347,15 @@ export default function PanellistDashboard({ data, panelistName }: PanellistDash
                 </div>
               </div>
             </div>
-          </div>
+          </ChartCard>
         </section>
         
         {/* Interview Details Table */}
         <section>
-          <div className="dashboard-card">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-              <h3 className="section-header mb-0">Interview Details</h3>
-              
+          <ChartCard
+            title="Interview Details"
+            variant="glass"
+            action={
               <div className="flex gap-3">
                 {/* Search */}
                 <div className="relative">
@@ -389,8 +394,8 @@ export default function PanellistDashboard({ data, panelistName }: PanellistDash
                   <option value="alert">With Alerts</option>
                 </select>
               </div>
-            </div>
-            
+            }
+          >
             <div className="overflow-x-auto">
               <table className="data-table">
                 <thead>
@@ -461,7 +466,7 @@ export default function PanellistDashboard({ data, panelistName }: PanellistDash
                 </p>
               )}
             </div>
-          </div>
+          </ChartCard>
         </section>
       </main>
     </div>
