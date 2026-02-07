@@ -33,10 +33,15 @@ export default function PanellistDashboard({ data, panelistName }: PanellistDash
   const [searchTerm, setSearchTerm] = useState('');
   const [roundFilter, setRoundFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [showAlertsOnly, setShowAlertsOnly] = useState(false);
+  const [showAllInterviews, setShowAllInterviews] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 25;
   const [filters, setFilters] = useState<DateFilters>({});
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]);
   const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
+  const interviewTableRef = React.useRef<HTMLDivElement>(null);
   
   // Filter data for this panelist
   const panelistData = useMemo(() => {
@@ -154,8 +159,13 @@ export default function PanellistDashboard({ data, panelistName }: PanellistDash
       }
     }
     
+    // Apply alert filter when bell is clicked
+    if (showAlertsOnly) {
+      filtered = filtered.filter(i => i.isAlert || i.isPendingFeedback);
+    }
+    
     return filtered;
-  }, [metrics.interviews, searchTerm, roundFilter, statusFilter]);
+  }, [metrics.interviews, searchTerm, roundFilter, statusFilter, showAlertsOnly]);
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
@@ -167,6 +177,12 @@ export default function PanellistDashboard({ data, panelistName }: PanellistDash
         recruiterAlerts={[]}
         panelistAlerts={panelistAlerts}
         onAlertClick={handleAlertClick}
+        onBellClick={() => {
+          setShowAlertsOnly(!showAlertsOnly);
+          setTimeout(() => {
+            interviewTableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }, 100);
+        }}
         actions={
           <div className="flex items-center gap-2">
             <DateFilter
@@ -252,17 +268,6 @@ export default function PanellistDashboard({ data, panelistName }: PanellistDash
               subtitle={metrics.avgFeedbackTimeHours > 48 ? 'Exceeds 48h limit' : 'Within limit'}
               icon={Clock}
               color={metrics.avgFeedbackTimeHours > 48 ? 'red' : 'green'}
-            />
-            <MetricCard
-              title="Alerts"
-              value={metrics.alertCount}
-              subtitle="Feedback delays"
-              icon={AlertTriangle}
-              color={metrics.alertCount > 0 ? 'red' : 'green'}
-              onClick={() => {
-                const bellButton = document.querySelector('[aria-label="View alerts"]') as HTMLButtonElement;
-                if (bellButton) bellButton.click();
-              }}
             />
           </MetricCardGroup>
         </section>
@@ -351,7 +356,16 @@ export default function PanellistDashboard({ data, panelistName }: PanellistDash
         </section>
         
         {/* Interview Details Table */}
-        <section>
+        <section ref={interviewTableRef}>
+          {showAlertsOnly && (
+            <div className="mb-4 flex items-center gap-2">
+              <FilterBadge
+                label="Filtered by Alerts"
+                count={filteredInterviews.length}
+                onClear={() => setShowAlertsOnly(false)}
+              />
+            </div>
+          )}
           <ChartCard
             title="Interview Details"
             variant="glass"
@@ -417,7 +431,11 @@ export default function PanellistDashboard({ data, panelistName }: PanellistDash
                       </td>
                     </tr>
                   ) : (
-                    filteredInterviews.map((interview, idx) => (
+                    (showAllInterviews 
+                      ? (filteredInterviews.length > itemsPerPage 
+                          ? filteredInterviews.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                          : filteredInterviews)
+                      : filteredInterviews.slice(0, 5)).map((interview, idx) => (
                       <tr 
                         key={idx} 
                         className={interview.isAlert || interview.isPendingFeedback ? 'bg-red-50' : ''}
@@ -460,10 +478,68 @@ export default function PanellistDashboard({ data, panelistName }: PanellistDash
                 </tbody>
               </table>
               
-              {filteredInterviews.length > 0 && (
-                <p className="text-sm text-slate-500 mt-4 text-center">
-                  Showing {filteredInterviews.length} interviews
-                </p>
+              {filteredInterviews.length > 5 && (
+                <div className="mt-4 border-t border-slate-200 pt-4">
+                  {!showAllInterviews ? (
+                    <div className="flex justify-center">
+                      <button
+                        onClick={() => {
+                          setShowAllInterviews(true);
+                          setCurrentPage(1);
+                        }}
+                        className="px-6 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+                      >
+                        Show More ({filteredInterviews.length - 5} more interviews)
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <button
+                        onClick={() => {
+                          setShowAllInterviews(false);
+                          setCurrentPage(1);
+                        }}
+                        className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+                      >
+                        Show Less
+                      </button>
+                      
+                      {filteredInterviews.length > itemsPerPage && (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                            className="px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          >
+                            Previous
+                          </button>
+                          
+                          {Array.from({ length: Math.ceil(filteredInterviews.length / itemsPerPage) }, (_, i) => i + 1).map(pageNum => (
+                            <button
+                              key={pageNum}
+                              onClick={() => setCurrentPage(pageNum)}
+                              className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                                currentPage === pageNum
+                                  ? 'bg-blue-600 text-white border border-blue-600'
+                                  : 'text-slate-700 bg-white border border-slate-300 hover:bg-slate-50'
+                              }`}
+                            >
+                              {pageNum}
+                            </button>
+                          ))}
+                          
+                          <button
+                            onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredInterviews.length / itemsPerPage), p + 1))}
+                            disabled={currentPage >= Math.ceil(filteredInterviews.length / itemsPerPage)}
+                            className="px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          >
+                            Next
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </ChartCard>
