@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   BarChart,
   Bar,
@@ -21,6 +21,10 @@ interface PanelistPerformanceProps {
 }
 
 export function PanelistPerformance({ panelists }: PanelistPerformanceProps) {
+  const [showAllPanelists, setShowAllPanelists] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 25;
+  
   const chartData = panelists.map(p => ({
     name: p.panelistName,
     R1: p.r1Interviews,
@@ -130,7 +134,11 @@ export function PanelistPerformance({ panelists }: PanelistPerformanceProps) {
             </tr>
           </thead>
           <tbody>
-            {panelists.map((panelist) => (
+            {(showAllPanelists 
+              ? (panelists.length > itemsPerPage 
+                  ? panelists.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                  : panelists)
+              : panelists.slice(0, 5)).map((panelist) => (
               <tr key={panelist.panelistName}>
                 <td className="font-medium">{panelist.panelistName}</td>
                 <td>{panelist.r1Interviews}</td>
@@ -161,6 +169,70 @@ export function PanelistPerformance({ panelists }: PanelistPerformanceProps) {
             ))}
           </tbody>
         </table>
+        
+        {panelists.length > 5 && (
+          <div className="mt-4 border-t border-slate-200 pt-4">
+            {!showAllPanelists ? (
+              <div className="flex justify-center">
+                <button
+                  onClick={() => {
+                    setShowAllPanelists(true);
+                    setCurrentPage(1);
+                  }}
+                  className="px-6 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+                >
+                  Show More ({panelists.length - 5} more panelists)
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={() => {
+                    setShowAllPanelists(false);
+                    setCurrentPage(1);
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+                >
+                  Show Less
+                </button>
+                
+                {panelists.length > itemsPerPage && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Previous
+                    </button>
+                    
+                    {Array.from({ length: Math.ceil(panelists.length / itemsPerPage) }, (_, i) => i + 1).map(pageNum => (
+                      <button
+                        key={pageNum}
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                          currentPage === pageNum
+                            ? 'bg-blue-600 text-white border border-blue-600'
+                            : 'text-slate-700 bg-white border border-slate-300 hover:bg-slate-50'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    ))}
+                    
+                    <button
+                      onClick={() => setCurrentPage(p => Math.min(Math.ceil(panelists.length / itemsPerPage), p + 1))}
+                      disabled={currentPage >= Math.ceil(panelists.length / itemsPerPage)}
+                      className="px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

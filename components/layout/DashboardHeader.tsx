@@ -13,6 +13,7 @@ interface DashboardHeaderProps {
   recruiterAlerts?: RecruiterAlert[];
   panelistAlerts?: PanelistAlert[];
   onAlertClick?: (candidateName: string) => void;
+  onBellClick?: () => void;
   showAlerts?: boolean;
   actions?: React.ReactNode;
 }
@@ -25,6 +26,7 @@ export function DashboardHeader({
   recruiterAlerts = [],
   panelistAlerts = [],
   onAlertClick,
+  onBellClick,
   showAlerts = true,
   actions,
 }: DashboardHeaderProps) {
@@ -48,6 +50,7 @@ export function DashboardHeader({
                 recruiterAlerts={recruiterAlerts}
                 panelistAlerts={panelistAlerts}
                 onAlertClick={onAlertClick}
+                onBellClick={onBellClick}
               />
             )}
             

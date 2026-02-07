@@ -12,7 +12,7 @@ import { MultiSelectFilter } from '@/components/ui/MultiSelectFilter';
 import { FilterBadge } from '@/components/ui/FilterBadge';
 import { MetricCard, MetricCardGroup } from '@/components/ui/MetricCard';
 import { ChartCard } from '@/components/ui/ChartCard';
-import PipelineBarChart from '@/components/charts/PipelineBarChart';
+import { CandidateFunnel } from '@/components/charts/CandidateFunnel';
 import { SourceDistribution } from '@/components/charts/SourceDistribution';
 import { FinalStatusBreakdown } from '@/components/charts/FinalStatusBreakdown';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -31,10 +31,12 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]);
   const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
+  const [showAllCandidates, setShowAllCandidates] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const candidatesPerPage = 25;
+  const itemsPerPage = 25;
   const { categoryFilter, setCategoryFilter, resetCategoryFilter } = useFilterStore();
   const candidateTableRef = useRef<HTMLDivElement>(null);
+  const systemAlertsRef = useRef<HTMLDivElement>(null);
   
   const filteredData = useMemo(() => {
     let result = filterByDateRange(data, filters);
@@ -300,6 +302,9 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
         recruiterAlerts={recruiterAlerts}
         panelistAlerts={panelistAlerts}
         onAlertClick={handleAlertClick}
+        onBellClick={() => {
+          systemAlertsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }}
         actions={
           <div className="flex items-center gap-2">
             <DateFilter
@@ -435,17 +440,6 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
               icon={Clock}
               color="yellow"
             />
-            <MetricCard
-              title="Alerts"
-              value={totalAlerts}
-              subtitle="48-hour violations"
-              icon={AlertTriangle}
-              color={totalAlerts > 0 ? 'red' : 'green'}
-              onClick={() => {
-                const bellButton = document.querySelector('[aria-label="View alerts"]') as HTMLButtonElement;
-                if (bellButton) bellButton.click();
-              }}
-            />
           </MetricCardGroup>
         </section>
         
@@ -458,7 +452,10 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
               icon={<BarChart3 className="w-5 h-5 text-blue-600" />}
               variant="glass"
             >
-              <PipelineBarChart data={pipelineData} onBarClick={handleBarClick} />
+              <CandidateFunnel
+                data={pipelineData}
+                onBarClick={handleBarClick}
+              />
               
               {/* Percentage Metrics */}
               <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-slate-200/50">
@@ -572,7 +569,7 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
         
         {/* Alerts Section */}
         {totalAlerts > 0 && (
-          <section className="mb-8">
+          <section className="mb-8" ref={systemAlertsRef}>
             <ChartCard
               title="System Alerts"
               subtitle={`${totalAlerts} active alerts requiring attention`}
@@ -600,12 +597,11 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
                         Recruiter Sourcing-to-Screening Alerts ({recruiterAlerts.length})
                       </h4>
                     </div>
-                    <div className="space-y-2 max-h-64 overflow-y-auto">
-                      {recruiterAlerts.slice(0, 5).map((alert, idx) => (
+                    <div className="space-y-2 max-h-96 overflow-y-auto">
+                      {recruiterAlerts.map((alert, idx) => (
                         <div
                           key={idx}
-                          className="bg-white rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-                          onClick={() => handleAlertClick(alert.candidateName)}
+                          className="bg-white rounded-lg p-3 shadow-sm"
                         >
                           <div className="flex items-start justify-between">
                             <div className="flex-1 min-w-0">
@@ -623,11 +619,6 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
                           </div>
                         </div>
                       ))}
-                      {recruiterAlerts.length > 5 && (
-                        <p className="text-center text-sm text-red-600 font-medium pt-2">
-                          +{recruiterAlerts.length - 5} more alerts
-                        </p>
-                      )}
                     </div>
                   </div>
                 )}
@@ -641,12 +632,11 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
                         Panellist Feedback Alerts ({panelistAlerts.length})
                       </h4>
                     </div>
-                    <div className="space-y-2 max-h-64 overflow-y-auto">
-                      {panelistAlerts.slice(0, 5).map((alert, idx) => (
+                    <div className="space-y-2 max-h-96 overflow-y-auto">
+                      {panelistAlerts.map((alert, idx) => (
                         <div
                           key={idx}
-                          className="bg-white rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-                          onClick={() => handleAlertClick(alert.candidateName)}
+                          className="bg-white rounded-lg p-3 shadow-sm"
                         >
                           <div className="flex items-start justify-between">
                             <div className="flex-1 min-w-0">
@@ -670,11 +660,6 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
                           </div>
                         </div>
                       ))}
-                      {panelistAlerts.length > 5 && (
-                        <p className="text-center text-sm text-orange-600 font-medium pt-2">
-                          +{panelistAlerts.length - 5} more alerts
-                        </p>
-                      )}
                     </div>
                   </div>
                 )}
@@ -690,7 +675,7 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
               <div>
                 <h3 className="text-lg font-semibold text-slate-800">Candidate Details</h3>
                 <p className="text-sm text-slate-500">
-                  Showing {((currentPage - 1) * candidatesPerPage) + 1} to {Math.min(currentPage * candidatesPerPage, filteredData.length)} of {filteredData.length} candidates
+                  Showing {showAllCandidates ? (filteredData.length > itemsPerPage ? `${((currentPage - 1) * itemsPerPage) + 1} to ${Math.min(currentPage * itemsPerPage, filteredData.length)} of ${filteredData.length}` : filteredData.length) : Math.min(5, filteredData.length)} of {filteredData.length} candidates
                 </p>
               </div>
               <div className="flex items-center gap-3">
@@ -761,8 +746,11 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-slate-200">
-                  {filteredData
-                    .slice((currentPage - 1) * candidatesPerPage, currentPage * candidatesPerPage)
+                  {(showAllCandidates 
+                    ? (filteredData.length > itemsPerPage 
+                        ? filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                        : filteredData)
+                    : filteredData.slice(0, 5))
                     .map((candidate, idx) => (
                     <tr key={idx} className="hover:bg-slate-50">
                       <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-slate-900">
@@ -801,28 +789,68 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
               </table>
             </div>
             
-            {/* Pagination Controls */}
-            {filteredData.length > candidatesPerPage && (
-              <div className="mt-4 flex items-center justify-between border-t border-slate-200 pt-4">
-                <div className="text-sm text-slate-600">
-                  Page {currentPage} of {Math.ceil(filteredData.length / candidatesPerPage)}
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                    className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Previous
-                  </button>
-                  <button
-                    onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredData.length / candidatesPerPage), p + 1))}
-                    disabled={currentPage >= Math.ceil(filteredData.length / candidatesPerPage)}
-                    className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Next
-                  </button>
-                </div>
+            {/* Show More/Less Button and Pagination */}
+            {filteredData.length > 5 && (
+              <div className="mt-4 border-t border-slate-200 pt-4">
+                {!showAllCandidates ? (
+                  <div className="flex justify-center">
+                    <button
+                      onClick={() => {
+                        setShowAllCandidates(true);
+                        setCurrentPage(1);
+                      }}
+                      className="px-6 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+                    >
+                      Show More ({filteredData.length - 5} more candidates)
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <button
+                      onClick={() => {
+                        setShowAllCandidates(false);
+                        setCurrentPage(1);
+                      }}
+                      className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+                    >
+                      Show Less
+                    </button>
+                    
+                    {filteredData.length > itemsPerPage && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                          disabled={currentPage === 1}
+                          className="px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          Previous
+                        </button>
+                        
+                        {Array.from({ length: Math.ceil(filteredData.length / itemsPerPage) }, (_, i) => i + 1).map(pageNum => (
+                          <button
+                            key={pageNum}
+                            onClick={() => setCurrentPage(pageNum)}
+                            className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                              currentPage === pageNum
+                                ? 'bg-blue-600 text-white border border-blue-600'
+                                : 'text-slate-700 bg-white border border-slate-300 hover:bg-slate-50'
+                            }`}
+                          >
+                            {pageNum}
+                          </button>
+                        ))}
+                        
+                        <button
+                          onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredData.length / itemsPerPage), p + 1))}
+                          disabled={currentPage >= Math.ceil(filteredData.length / itemsPerPage)}
+                          className="px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>

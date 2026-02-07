@@ -24,11 +24,16 @@ interface RecruiterDashboardProps {
 export default function RecruiterDashboard({ data, recruiterName }: RecruiterDashboardProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [showAlertsOnly, setShowAlertsOnly] = useState(false);
+  const [showAllCandidates, setShowAllCandidates] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 25;
   const [filters, setFilters] = useState<DateFilters>({});
   const [selectedPanelists, setSelectedPanelists] = useState<string[]>([]);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]);
   const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
+  const candidateTableRef = React.useRef<HTMLDivElement>(null);
   
   // Filter data for this recruiter
   const recruiterData = useMemo(() => {
@@ -172,8 +177,13 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
       }
     }
     
+    // Apply alert filter when bell is clicked
+    if (showAlertsOnly) {
+      filtered = filtered.filter(c => is48HourAlertTriggered(c.sourcingDate, c.screeningDate));
+    }
+    
     return filtered;
-  }, [filteredData, searchTerm, statusFilter]);
+  }, [filteredData, searchTerm, statusFilter, showAlertsOnly]);
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
@@ -185,6 +195,12 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
         recruiterAlerts={recruiterAlerts}
         panelistAlerts={[]}
         onAlertClick={handleAlertClick}
+        onBellClick={() => {
+          setShowAlertsOnly(!showAlertsOnly);
+          setTimeout(() => {
+            candidateTableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }, 100);
+        }}
         actions={
           <div className="flex items-center gap-2">
             <DateFilter
@@ -285,17 +301,6 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
               icon={TrendingUp}
               color="purple"
             />
-            <MetricCard
-              title="Alerts"
-              value={metrics.alertCount}
-              subtitle="48-hour violations"
-              icon={AlertTriangle}
-              color={metrics.alertCount > 0 ? 'red' : 'green'}
-              onClick={() => {
-                const bellButton = document.querySelector('[aria-label="View alerts"]') as HTMLButtonElement;
-                if (bellButton) bellButton.click();
-              }}
-            />
           </MetricCardGroup>
         </section>
         
@@ -355,7 +360,16 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
         </section>
         
         {/* Candidate Profiles Table */}
-        <section>
+        <section ref={candidateTableRef}>
+          {showAlertsOnly && (
+            <div className="mb-4 flex items-center gap-2">
+              <FilterBadge
+                label="Filtered by Alerts"
+                count={filteredCandidates.length}
+                onClear={() => setShowAlertsOnly(false)}
+              />
+            </div>
+          )}
           <ChartCard
             title="Candidate Profiles"
             variant="glass"
@@ -410,7 +424,11 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
                       </td>
                     </tr>
                   ) : (
-                    filteredCandidates.slice(0, 20).map((candidate, idx) => {
+                    (showAllCandidates 
+                      ? (filteredCandidates.length > itemsPerPage 
+                          ? filteredCandidates.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                          : filteredCandidates)
+                      : filteredCandidates.slice(0, 5)).map((candidate, idx) => {
                       const isAlert = is48HourAlertTriggered(candidate.sourcingDate, candidate.screeningDate);
                       const timeDiff = calculateTimeDifferenceHours(candidate.sourcingDate, candidate.screeningDate);
                       
@@ -442,10 +460,68 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
                 </tbody>
               </table>
               
-              {filteredCandidates.length > 20 && (
-                <p className="text-sm text-slate-500 mt-4 text-center">
-                  Showing 20 of {filteredCandidates.length} candidates
-                </p>
+              {filteredCandidates.length > 5 && (
+                <div className="mt-4 border-t border-slate-200 pt-4">
+                  {!showAllCandidates ? (
+                    <div className="flex justify-center">
+                      <button
+                        onClick={() => {
+                          setShowAllCandidates(true);
+                          setCurrentPage(1);
+                        }}
+                        className="px-6 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+                      >
+                        Show More ({filteredCandidates.length - 5} more candidates)
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <button
+                        onClick={() => {
+                          setShowAllCandidates(false);
+                          setCurrentPage(1);
+                        }}
+                        className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+                      >
+                        Show Less
+                      </button>
+                      
+                      {filteredCandidates.length > itemsPerPage && (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                            className="px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          >
+                            Previous
+                          </button>
+                          
+                          {Array.from({ length: Math.ceil(filteredCandidates.length / itemsPerPage) }, (_, i) => i + 1).map(pageNum => (
+                            <button
+                              key={pageNum}
+                              onClick={() => setCurrentPage(pageNum)}
+                              className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                                currentPage === pageNum
+                                  ? 'bg-blue-600 text-white border border-blue-600'
+                                  : 'text-slate-700 bg-white border border-slate-300 hover:bg-slate-50'
+                              }`}
+                            >
+                              {pageNum}
+                            </button>
+                          ))}
+                          
+                          <button
+                            onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredCandidates.length / itemsPerPage), p + 1))}
+                            disabled={currentPage >= Math.ceil(filteredCandidates.length / itemsPerPage)}
+                            className="px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          >
+                            Next
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </ChartCard>

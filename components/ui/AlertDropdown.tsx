@@ -28,6 +28,7 @@ interface AlertDropdownProps {
   recruiterAlerts: RecruiterAlert[];
   panelistAlerts: PanelistAlert[];
   onAlertClick?: (candidateName: string) => void;
+  onBellClick?: () => void;
   className?: string;
 }
 
@@ -35,6 +36,7 @@ export function AlertDropdown({
   recruiterAlerts, 
   panelistAlerts, 
   onAlertClick,
+  onBellClick,
   className = '' 
 }: AlertDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -72,7 +74,13 @@ export function AlertDropdown({
     <div className={`relative ${className}`} ref={dropdownRef}>
       {/* Bell Icon Button */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          if (onBellClick) {
+            onBellClick();
+          } else {
+            setIsOpen(!isOpen);
+          }
+        }}
         className="relative p-2 rounded-lg hover:bg-slate-100 transition-colors"
         aria-label="View alerts"
       >
