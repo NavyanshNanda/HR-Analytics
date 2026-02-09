@@ -104,6 +104,22 @@ export default function PanellistDashboard({ data, panelistName }: PanellistDash
     return calculatePanelistMetrics(filteredData, panelistName);
   }, [filteredData, panelistName]);
   
+  // Calculate cleared and rejected counts for each round
+  const roundStats = useMemo(() => {
+    const r1Interviews = metrics.interviews.filter(i => i.round === 'R1');
+    const r2Interviews = metrics.interviews.filter(i => i.round === 'R2');
+    const r3Interviews = metrics.interviews.filter(i => i.round === 'R3');
+    
+    return {
+      r1Cleared: r1Interviews.filter(i => i.status === 'Cleared').length,
+      r1Rejected: r1Interviews.filter(i => i.status === 'Not Cleared').length,
+      r2Cleared: r2Interviews.filter(i => i.status === 'Cleared').length,
+      r2Rejected: r2Interviews.filter(i => i.status === 'Not Cleared').length,
+      r3Cleared: r3Interviews.filter(i => i.status === 'Cleared').length,
+      r3Rejected: r3Interviews.filter(i => i.status === 'Not Cleared').length,
+    };
+  }, [metrics.interviews]);
+  
   // Get interviews with alerts from filtered data
   const alertInterviews = useMemo(() => {
     return metrics.interviews.filter(i => i.isAlert || i.isPendingFeedback);
@@ -306,12 +322,7 @@ export default function PanellistDashboard({ data, panelistName }: PanellistDash
         
         {/* Pass Rate Chart */}
         <section className="mb-8">
-          <PassRateChart data={{
-            r1PassRate: metrics.r1PassRate,
-            r2PassRate: metrics.r2PassRate,
-            r3PassRate: metrics.r3PassRate,
-            passRate: metrics.passRate,
-          }} />
+          <PassRateChart data={roundStats} />
         </section>
         
         {/* Interview Status Summary */}
