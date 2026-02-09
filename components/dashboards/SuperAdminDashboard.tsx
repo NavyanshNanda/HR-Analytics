@@ -31,9 +31,10 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]);
   const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
-  const [showAllCandidates, setShowAllCandidates] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 25;
+  const itemsPerPage = 20;
+  const [showAllAlerts, setShowAllAlerts] = useState(false);
+  const [showCandidateTable, setShowCandidateTable] = useState(false);
   const { categoryFilter, setCategoryFilter, resetCategoryFilter } = useFilterStore();
   const candidateTableRef = useRef<HTMLDivElement>(null);
   const systemAlertsRef = useRef<HTMLDivElement>(null);
@@ -258,18 +259,26 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
     // Filter to show this candidate
     resetCategoryFilter();
     setCurrentPage(1);
-    // Scroll to table
+    // Scroll to table with offset for fixed header
     setTimeout(() => {
-      candidateTableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (candidateTableRef.current) {
+        const elementPosition = candidateTableRef.current.getBoundingClientRect().top + window.pageYOffset;
+        const offsetPosition = elementPosition - 120; // Offset for header + filters
+        window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
+      }
     }, 100);
   };
   
   const handleBarClick = (category: string) => {
     setCategoryFilter(category as any);
     setCurrentPage(1); // Reset to first page
-    // Scroll to candidate table
+    // Scroll to candidate table with offset for fixed header
     setTimeout(() => {
-      candidateTableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (candidateTableRef.current) {
+        const elementPosition = candidateTableRef.current.getBoundingClientRect().top + window.pageYOffset;
+        const offsetPosition = elementPosition - 120; // Offset for header + filters
+        window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
+      }
     }, 100);
   };
   
@@ -303,7 +312,14 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
         panelistAlerts={panelistAlerts}
         onAlertClick={handleAlertClick}
         onBellClick={() => {
-          systemAlertsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          setShowAllAlerts(true);
+          setTimeout(() => {
+            if (systemAlertsRef.current) {
+              const elementPosition = systemAlertsRef.current.getBoundingClientRect().top + window.pageYOffset;
+              const offsetPosition = elementPosition - 120; // Offset for header + filters
+              window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
+            }
+          }, 100);
         }}
         actions={
           <div className="flex items-center gap-2">
@@ -577,17 +593,15 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
               variant="elevated"
               action={
                 <button
-                  onClick={() => {
-                    const bellButton = document.querySelector('[aria-label="View alerts"]') as HTMLButtonElement;
-                    if (bellButton) bellButton.click();
-                  }}
+                  onClick={() => setShowAllAlerts(!showAllAlerts)}
                   className="px-4 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition-colors text-sm font-medium"
                 >
-                  View All Alerts
+                  {showAllAlerts ? 'Collapse Alerts' : 'View All Alerts'}
                 </button>
               }
             >
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {showAllAlerts && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Recruiter Alerts */}
                 {recruiterAlerts.length > 0 && (
                   <div className="bg-red-50 rounded-lg p-4 border border-red-200">
@@ -664,21 +678,29 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
                   </div>
                 )}
               </div>
+              )}
             </ChartCard>
           </section>
         )}
         
         {/* Candidate Details Table */}
         <section className="mb-8" ref={candidateTableRef}>
-          <div className="dashboard-card">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="text-lg font-semibold text-slate-800">Candidate Details</h3>
-                <p className="text-sm text-slate-500">
-                  Showing {showAllCandidates ? (filteredData.length > itemsPerPage ? `${((currentPage - 1) * itemsPerPage) + 1} to ${Math.min(currentPage * itemsPerPage, filteredData.length)} of ${filteredData.length}` : filteredData.length) : Math.min(5, filteredData.length)} of {filteredData.length} candidates
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
+          <ChartCard
+            title="Candidate Details"
+            subtitle={`${filteredData.length} total candidates`}
+            variant="elevated"
+            action={
+              <button
+                onClick={() => setShowCandidateTable(!showCandidateTable)}
+                className="px-4 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium"
+              >
+                {showCandidateTable ? 'Collapse' : 'View All'}
+              </button>
+            }
+          >
+            {showCandidateTable && (
+            <div>
+            <div className="flex items-center justify-end mb-4 gap-3">
                 {/* Category Filter Badge */}
                 {categoryFilter && (
                   <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg">
@@ -716,9 +738,8 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
                   <option value="Other">Other</option>
                 </select>
               </div>
-            </div>
             
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto" style={{ maxHeight: '400px', overflowY: 'auto' }}>
               <table className="min-w-full divide-y divide-slate-200">
                 <thead className="bg-slate-50">
                   <tr>
@@ -746,13 +767,17 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-slate-200">
-                  {(showAllCandidates 
-                    ? (filteredData.length > itemsPerPage 
-                        ? filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-                        : filteredData)
-                    : filteredData.slice(0, 5))
-                    .map((candidate, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50">
+                  {filteredData.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="px-4 py-3 text-center text-slate-500">
+                        No candidates found matching your criteria
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredData
+                      .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                      .map((candidate, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50">
                       <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-slate-900">
                         {candidate.candidateName}
                       </td>
@@ -784,76 +809,51 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
                         {candidate.rejectRound || '-'}
                       </td>
                     </tr>
-                  ))}
+                  )))}
                 </tbody>
               </table>
             </div>
             
-            {/* Show More/Less Button and Pagination */}
-            {filteredData.length > 5 && (
+            {filteredData.length > itemsPerPage && (
               <div className="mt-4 border-t border-slate-200 pt-4">
-                {!showAllCandidates ? (
-                  <div className="flex justify-center">
-                    <button
-                      onClick={() => {
-                        setShowAllCandidates(true);
-                        setCurrentPage(1);
-                      }}
-                      className="px-6 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
-                    >
-                      Show More ({filteredData.length - 5} more candidates)
-                    </button>
+                <div className="flex items-center justify-between">
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Previous
+                  </button>
+                  
+                  <div className="flex gap-2">
+                    {Array.from({ length: Math.ceil(filteredData.length / itemsPerPage) }, (_, i) => i + 1).map(pageNum => (
+                      <button
+                        key={pageNum}
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                          currentPage === pageNum
+                            ? 'bg-blue-600 text-white border border-blue-600'
+                            : 'text-slate-700 bg-white border border-slate-300 hover:bg-slate-50'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    ))}
                   </div>
-                ) : (
-                  <div className="flex items-center justify-between">
-                    <button
-                      onClick={() => {
-                        setShowAllCandidates(false);
-                        setCurrentPage(1);
-                      }}
-                      className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
-                    >
-                      Show Less
-                    </button>
-                    
-                    {filteredData.length > itemsPerPage && (
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                          disabled={currentPage === 1}
-                          className="px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        >
-                          Previous
-                        </button>
-                        
-                        {Array.from({ length: Math.ceil(filteredData.length / itemsPerPage) }, (_, i) => i + 1).map(pageNum => (
-                          <button
-                            key={pageNum}
-                            onClick={() => setCurrentPage(pageNum)}
-                            className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                              currentPage === pageNum
-                                ? 'bg-blue-600 text-white border border-blue-600'
-                                : 'text-slate-700 bg-white border border-slate-300 hover:bg-slate-50'
-                            }`}
-                          >
-                            {pageNum}
-                          </button>
-                        ))}
-                        
-                        <button
-                          onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredData.length / itemsPerPage), p + 1))}
-                          disabled={currentPage >= Math.ceil(filteredData.length / itemsPerPage)}
-                          className="px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        >
-                          Next
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
+                  
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredData.length / itemsPerPage), p + 1))}
+                    disabled={currentPage >= Math.ceil(filteredData.length / itemsPerPage)}
+                    className="px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Next
+                  </button>
+                </div>
               </div>
             )}
-          </div>
+            </div>
+            )}
+          </ChartCard>
         </section>
         
         {/* Additional Metrics */}
