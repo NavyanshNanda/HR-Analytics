@@ -36,11 +36,12 @@ export default function PanellistDashboard({ data, panelistName }: PanellistDash
   const [showAlertsOnly, setShowAlertsOnly] = useState(false);
   const [showAllInterviews, setShowAllInterviews] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 25;
+  const itemsPerPage = 20;
   const [filters, setFilters] = useState<DateFilters>({});
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]);
   const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
+  const [showInterviewTable, setShowInterviewTable] = useState(false);
   const interviewTableRef = React.useRef<HTMLDivElement>(null);
   
   // Filter data for this panelist
@@ -143,11 +144,13 @@ export default function PanellistDashboard({ data, panelistName }: PanellistDash
     setSearchTerm(candidateName);
     setRoundFilter('all');
     setStatusFilter('all');
-    // Scroll to table
+    // Scroll to table with offset for fixed header
     setTimeout(() => {
       const tableSection = document.querySelector('#interviews-table');
       if (tableSection) {
-        tableSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        const elementPosition = tableSection.getBoundingClientRect().top + window.pageYOffset;
+        const offsetPosition = elementPosition - 120; // Offset for header + filters
+        window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
       }
     }, 100);
   };
@@ -196,7 +199,11 @@ export default function PanellistDashboard({ data, panelistName }: PanellistDash
         onBellClick={() => {
           setShowAlertsOnly(!showAlertsOnly);
           setTimeout(() => {
-            interviewTableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            if (interviewTableRef.current) {
+              const elementPosition = interviewTableRef.current.getBoundingClientRect().top + window.pageYOffset;
+              const offsetPosition = elementPosition - 120; // Offset for header + filters
+              window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
+            }
           }, 100);
         }}
         actions={
@@ -379,9 +386,18 @@ export default function PanellistDashboard({ data, panelistName }: PanellistDash
           )}
           <ChartCard
             title="Interview Details"
+            subtitle={`${filteredInterviews.length} total interviews`}
             variant="glass"
             action={
               <div className="flex gap-3">
+                <button
+                  onClick={() => setShowInterviewTable(!showInterviewTable)}
+                  className="px-4 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium"
+                >
+                  {showInterviewTable ? 'Collapse' : 'View All'}
+                </button>
+                {showInterviewTable && (
+                  <>
                 {/* Search */}
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -418,10 +434,13 @@ export default function PanellistDashboard({ data, panelistName }: PanellistDash
                   <option value="pending">Pending</option>
                   <option value="alert">With Alerts</option>
                 </select>
+                  </>
+                )}
               </div>
             }
           >
-            <div className="overflow-x-auto">
+            {showInterviewTable && (
+            <div className="overflow-x-auto" style={{ maxHeight: '400px', overflowY: 'auto' }}>
               <table className="data-table">
                 <thead>
                   <tr>
@@ -442,11 +461,9 @@ export default function PanellistDashboard({ data, panelistName }: PanellistDash
                       </td>
                     </tr>
                   ) : (
-                    (showAllInterviews 
-                      ? (filteredInterviews.length > itemsPerPage 
-                          ? filteredInterviews.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-                          : filteredInterviews)
-                      : filteredInterviews.slice(0, 5)).map((interview, idx) => (
+                    filteredInterviews
+                      .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                      .map((interview, idx) => (
                       <tr 
                         key={idx} 
                         className={interview.isAlert || interview.isPendingFeedback ? 'bg-red-50' : ''}
@@ -489,70 +506,45 @@ export default function PanellistDashboard({ data, panelistName }: PanellistDash
                 </tbody>
               </table>
               
-              {filteredInterviews.length > 5 && (
+              {filteredInterviews.length > itemsPerPage && (
                 <div className="mt-4 border-t border-slate-200 pt-4">
-                  {!showAllInterviews ? (
-                    <div className="flex justify-center">
-                      <button
-                        onClick={() => {
-                          setShowAllInterviews(true);
-                          setCurrentPage(1);
-                        }}
-                        className="px-6 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
-                      >
-                        Show More ({filteredInterviews.length - 5} more interviews)
-                      </button>
+                  <div className="flex items-center justify-between">
+                    <button
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Previous
+                    </button>
+                    
+                    <div className="flex gap-2">
+                      {Array.from({ length: Math.ceil(filteredInterviews.length / itemsPerPage) }, (_, i) => i + 1).map(pageNum => (
+                        <button
+                          key={pageNum}
+                          onClick={() => setCurrentPage(pageNum)}
+                          className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                            currentPage === pageNum
+                              ? 'bg-blue-600 text-white border border-blue-600'
+                              : 'text-slate-700 bg-white border border-slate-300 hover:bg-slate-50'
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      ))}
                     </div>
-                  ) : (
-                    <div className="flex items-center justify-between">
-                      <button
-                        onClick={() => {
-                          setShowAllInterviews(false);
-                          setCurrentPage(1);
-                        }}
-                        className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
-                      >
-                        Show Less
-                      </button>
-                      
-                      {filteredInterviews.length > itemsPerPage && (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                            disabled={currentPage === 1}
-                            className="px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                          >
-                            Previous
-                          </button>
-                          
-                          {Array.from({ length: Math.ceil(filteredInterviews.length / itemsPerPage) }, (_, i) => i + 1).map(pageNum => (
-                            <button
-                              key={pageNum}
-                              onClick={() => setCurrentPage(pageNum)}
-                              className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                                currentPage === pageNum
-                                  ? 'bg-blue-600 text-white border border-blue-600'
-                                  : 'text-slate-700 bg-white border border-slate-300 hover:bg-slate-50'
-                              }`}
-                            >
-                              {pageNum}
-                            </button>
-                          ))}
-                          
-                          <button
-                            onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredInterviews.length / itemsPerPage), p + 1))}
-                            disabled={currentPage >= Math.ceil(filteredInterviews.length / itemsPerPage)}
-                            className="px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                          >
-                            Next
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                    
+                    <button
+                      onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredInterviews.length / itemsPerPage), p + 1))}
+                      disabled={currentPage >= Math.ceil(filteredInterviews.length / itemsPerPage)}
+                      className="px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Next
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
+            )}
           </ChartCard>
         </section>
       </main>

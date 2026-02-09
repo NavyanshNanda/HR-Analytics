@@ -27,12 +27,13 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
   const [showAlertsOnly, setShowAlertsOnly] = useState(false);
   const [showAllCandidates, setShowAllCandidates] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 25;
+  const itemsPerPage = 20;
   const [filters, setFilters] = useState<DateFilters>({});
   const [selectedPanelists, setSelectedPanelists] = useState<string[]>([]);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]);
   const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
+  const [showCandidateTable, setShowCandidateTable] = useState(false);
   const candidateTableRef = React.useRef<HTMLDivElement>(null);
   
   // Filter data for this recruiter
@@ -147,11 +148,13 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
   const handleAlertClick = (candidateName: string) => {
     setSearchTerm(candidateName);
     setStatusFilter('all');
-    // Scroll to table
+    // Scroll to table with offset for fixed header
     setTimeout(() => {
       const tableSection = document.querySelector('#candidates-table');
       if (tableSection) {
-        tableSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        const elementPosition = tableSection.getBoundingClientRect().top + window.pageYOffset;
+        const offsetPosition = elementPosition - 120; // Offset for header + filters
+        window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
       }
     }, 100);
   };
@@ -198,7 +201,11 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
         onBellClick={() => {
           setShowAlertsOnly(!showAlertsOnly);
           setTimeout(() => {
-            candidateTableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            if (candidateTableRef.current) {
+              const elementPosition = candidateTableRef.current.getBoundingClientRect().top + window.pageYOffset;
+              const offsetPosition = elementPosition - 120; // Offset for header + filters
+              window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
+            }
           }, 100);
         }}
         actions={
@@ -372,9 +379,18 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
           )}
           <ChartCard
             title="Candidate Profiles"
+            subtitle={`${filteredCandidates.length} total candidates`}
             variant="glass"
             action={
               <div className="flex gap-3">
+                <button
+                  onClick={() => setShowCandidateTable(!showCandidateTable)}
+                  className="px-4 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium"
+                >
+                  {showCandidateTable ? 'Collapse' : 'View All'}
+                </button>
+                {showCandidateTable && (
+                  <>
                 {/* Search */}
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -399,10 +415,13 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
                   <option value="in progress">In Progress</option>
                   <option value="alert">With Alerts</option>
                 </select>
+                  </>
+                )}
               </div>
             }
           >
-            <div className="overflow-x-auto">
+            {showCandidateTable && (
+            <div className="overflow-x-auto" style={{ maxHeight: '400px', overflowY: 'auto' }}>
               <table className="data-table">
                 <thead>
                   <tr>
@@ -424,11 +443,9 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
                       </td>
                     </tr>
                   ) : (
-                    (showAllCandidates 
-                      ? (filteredCandidates.length > itemsPerPage 
-                          ? filteredCandidates.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-                          : filteredCandidates)
-                      : filteredCandidates.slice(0, 5)).map((candidate, idx) => {
+                    filteredCandidates
+                      .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                      .map((candidate, idx) => {
                       const isAlert = is48HourAlertTriggered(candidate.sourcingDate, candidate.screeningDate);
                       const timeDiff = calculateTimeDifferenceHours(candidate.sourcingDate, candidate.screeningDate);
                       
@@ -460,70 +477,45 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
                 </tbody>
               </table>
               
-              {filteredCandidates.length > 5 && (
+              {filteredCandidates.length > itemsPerPage && (
                 <div className="mt-4 border-t border-slate-200 pt-4">
-                  {!showAllCandidates ? (
-                    <div className="flex justify-center">
-                      <button
-                        onClick={() => {
-                          setShowAllCandidates(true);
-                          setCurrentPage(1);
-                        }}
-                        className="px-6 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
-                      >
-                        Show More ({filteredCandidates.length - 5} more candidates)
-                      </button>
+                  <div className="flex items-center justify-between">
+                    <button
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Previous
+                    </button>
+                    
+                    <div className="flex gap-2">
+                      {Array.from({ length: Math.ceil(filteredCandidates.length / itemsPerPage) }, (_, i) => i + 1).map(pageNum => (
+                        <button
+                          key={pageNum}
+                          onClick={() => setCurrentPage(pageNum)}
+                          className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                            currentPage === pageNum
+                              ? 'bg-blue-600 text-white border border-blue-600'
+                              : 'text-slate-700 bg-white border border-slate-300 hover:bg-slate-50'
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      ))}
                     </div>
-                  ) : (
-                    <div className="flex items-center justify-between">
-                      <button
-                        onClick={() => {
-                          setShowAllCandidates(false);
-                          setCurrentPage(1);
-                        }}
-                        className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
-                      >
-                        Show Less
-                      </button>
-                      
-                      {filteredCandidates.length > itemsPerPage && (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                            disabled={currentPage === 1}
-                            className="px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                          >
-                            Previous
-                          </button>
-                          
-                          {Array.from({ length: Math.ceil(filteredCandidates.length / itemsPerPage) }, (_, i) => i + 1).map(pageNum => (
-                            <button
-                              key={pageNum}
-                              onClick={() => setCurrentPage(pageNum)}
-                              className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                                currentPage === pageNum
-                                  ? 'bg-blue-600 text-white border border-blue-600'
-                                  : 'text-slate-700 bg-white border border-slate-300 hover:bg-slate-50'
-                              }`}
-                            >
-                              {pageNum}
-                            </button>
-                          ))}
-                          
-                          <button
-                            onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredCandidates.length / itemsPerPage), p + 1))}
-                            disabled={currentPage >= Math.ceil(filteredCandidates.length / itemsPerPage)}
-                            className="px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                          >
-                            Next
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                    
+                    <button
+                      onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredCandidates.length / itemsPerPage), p + 1))}
+                      disabled={currentPage >= Math.ceil(filteredCandidates.length / itemsPerPage)}
+                      className="px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Next
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
+            )}
           </ChartCard>
         </section>
       </main>

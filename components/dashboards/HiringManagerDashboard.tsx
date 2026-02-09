@@ -33,6 +33,7 @@ export default function HiringManagerDashboard({ data, hmName }: HiringManagerDa
   const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
+  const [showAllAlerts, setShowAllAlerts] = useState(false);
   const systemAlertsRef = useRef<HTMLDivElement>(null);
   
   // Filter data for this HM
@@ -105,6 +106,7 @@ export default function HiringManagerDashboard({ data, hmName }: HiringManagerDa
   const pipelineData = useMemo(() => {
     return [
       { name: 'Total Candidates', value: filteredData.length, fill: '#3B82F6', category: 'all' },
+      { name: 'Screening Cleared', value: pipelineMetrics.screeningCleared, fill: '#6366F1', category: 'screening' },
       { name: 'Round 1 Cleared', value: pipelineMetrics.r1Cleared, fill: '#8B5CF6', category: 'r1' },
       { name: 'Round 2 Cleared', value: pipelineMetrics.r2Cleared, fill: '#EC4899', category: 'r2' },
       { name: 'Round 3 Cleared', value: pipelineMetrics.r3Cleared, fill: '#22C55E', category: 'r3' },
@@ -164,7 +166,14 @@ export default function HiringManagerDashboard({ data, hmName }: HiringManagerDa
         recruiterAlerts={[]}
         panelistAlerts={panelistAlerts}
         onBellClick={() => {
-          systemAlertsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          setShowAllAlerts(true);
+          setTimeout(() => {
+            if (systemAlertsRef.current) {
+              const elementPosition = systemAlertsRef.current.getBoundingClientRect().top + window.pageYOffset;
+              const offsetPosition = elementPosition - 120; // Offset for header + filters
+              window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
+            }
+          }, 100);
         }}
         actions={
           <div className="flex items-center gap-2">
@@ -304,44 +313,54 @@ export default function HiringManagerDashboard({ data, hmName }: HiringManagerDa
               subtitle={`${totalAlerts} feedback delays requiring attention`}
               icon={<AlertTriangle className="w-5 h-5 text-orange-600" />}
               variant="elevated"
+              action={
+                <button
+                  onClick={() => setShowAllAlerts(!showAllAlerts)}
+                  className="px-4 py-2 bg-orange-50 text-orange-700 rounded-lg hover:bg-orange-100 transition-colors text-sm font-medium"
+                >
+                  {showAllAlerts ? 'Collapse Alerts' : 'View All Alerts'}
+                </button>
+              }
             >
-              <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-2 h-2 bg-orange-600 rounded-full animate-pulse"></div>
-                  <h4 className="font-semibold text-orange-800">
-                    Panellist Feedback Alerts ({totalAlerts})
-                  </h4>
-                </div>
-                <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {panelistAlerts.map((alert, idx) => (
-                    <div
-                      key={idx}
-                      className="bg-white rounded-lg p-3 shadow-sm"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-slate-800 truncate">{alert.panelistName}</p>
-                          <p className="text-xs text-slate-600 mt-0.5">
-                            {alert.candidateName} • Round: {alert.round}
-                          </p>
-                          <p className="text-xs text-slate-500 mt-1">
-                            Interview: {formatDate(alert.interviewDate)}
-                          </p>
+              {showAllAlerts && (
+                <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-2 h-2 bg-orange-600 rounded-full animate-pulse"></div>
+                    <h4 className="font-semibold text-orange-800">
+                      Panellist Feedback Alerts ({totalAlerts})
+                    </h4>
+                  </div>
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {panelistAlerts.map((alert, idx) => (
+                      <div
+                        key={idx}
+                        className="bg-white rounded-lg p-3 shadow-sm"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-slate-800 truncate">{alert.panelistName}</p>
+                            <p className="text-xs text-slate-600 mt-0.5">
+                              {alert.candidateName} • Round: {alert.round}
+                            </p>
+                            <p className="text-xs text-slate-500 mt-1">
+                              Interview: {formatDate(alert.interviewDate)}
+                            </p>
+                          </div>
+                          {alert.isPending ? (
+                            <span className="text-xs font-semibold text-yellow-600 whitespace-nowrap ml-2">
+                              Pending
+                            </span>
+                          ) : (
+                            <span className="text-xs font-semibold text-orange-600 whitespace-nowrap ml-2">
+                              {alert.hours !== null ? formatHoursToReadable(alert.hours) : 'Delayed'}
+                            </span>
+                          )}
                         </div>
-                        {alert.isPending ? (
-                          <span className="text-xs font-semibold text-yellow-600 whitespace-nowrap ml-2">
-                            Pending
-                          </span>
-                        ) : (
-                          <span className="text-xs font-semibold text-orange-600 whitespace-nowrap ml-2">
-                            {alert.hours !== null ? formatHoursToReadable(alert.hours) : 'Delayed'}
-                          </span>
-                        )}
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </ChartCard>
           </section>
         )}
