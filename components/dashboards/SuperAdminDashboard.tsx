@@ -17,7 +17,7 @@ import { SourceDistribution } from '@/components/charts/SourceDistribution';
 import { FinalStatusBreakdown } from '@/components/charts/FinalStatusBreakdown';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Users, UserCheck, UserX, Clock, TrendingUp, Calendar, Filter as FilterIcon, X, AlertTriangle, BarChart3, PieChart as PieChartIcon } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList } from 'recharts';
 
 interface SuperAdminDashboardProps {
   data: CandidateRecord[];
@@ -35,6 +35,7 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
   const itemsPerPage = 20;
   const [showAllAlerts, setShowAllAlerts] = useState(false);
   const [showCandidateTable, setShowCandidateTable] = useState(false);
+  const [selectedSourceForDrilldown, setSelectedSourceForDrilldown] = useState<string | null>(null);
   const { categoryFilter, setCategoryFilter, resetCategoryFilter } = useFilterStore();
   const candidateTableRef = useRef<HTMLDivElement>(null);
   const systemAlertsRef = useRef<HTMLDivElement>(null);
@@ -580,7 +581,192 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
         
         {/* Source Distribution */}
         <section className="mb-8">
-          <SourceDistribution data={sourceDistribution} />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Bar Chart Section */}
+            <ChartCard
+              title={selectedSourceForDrilldown ? `${selectedSourceForDrilldown} - Sub-sources` : "Source Distribution"}
+              icon={<BarChart3 className="w-5 h-5 text-blue-600" />}
+              variant="glass"
+              action={selectedSourceForDrilldown ? (
+                <button
+                  onClick={() => setSelectedSourceForDrilldown(null)}
+                  className="px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium"
+                >
+                  ← Back to Sources
+                </button>
+              ) : undefined}
+            >
+              <div className="h-[340px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart 
+                    data={selectedSourceForDrilldown 
+                      ? (sourceDistribution.find(s => s.source === selectedSourceForDrilldown)?.subSources || []).map(sub => ({
+                          name: sub.subSource,
+                          count: sub.count,
+                          percentage: sourceDistribution.find(s => s.source === selectedSourceForDrilldown)!.count > 0
+                            ? Math.round((sub.count / sourceDistribution.find(s => s.source === selectedSourceForDrilldown)!.count) * 100)
+                            : 0
+                        }))
+                      : sourceDistribution.map(s => ({ name: s.source, count: s.count, percentage: s.percentage }))
+                    }
+                    margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+                    barSize={40}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis 
+                      dataKey="name" 
+                      tick={{ fontSize: 11 }}
+                      angle={-45}
+                      textAnchor="end"
+                      height={80}
+                    />
+                    <YAxis tick={{ fontSize: 12 }} />
+                    <Tooltip 
+                      contentStyle={{
+                        backgroundColor: 'rgba(255, 255, 255, 0.96)',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                      }}
+                    />
+                    <Bar 
+                      dataKey="count" 
+                      radius={[6, 6, 0, 0]}
+                      onClick={(data) => {
+                        if (!selectedSourceForDrilldown) {
+                          const sourceItem = sourceDistribution.find(s => s.source === data.name);
+                          if (sourceItem && sourceItem.subSources && sourceItem.subSources.length > 0) {
+                            setSelectedSourceForDrilldown(data.name);
+                          }
+                        }
+                      }}
+                      style={{ cursor: selectedSourceForDrilldown ? 'default' : 'pointer' }}
+                    >
+                      {(selectedSourceForDrilldown 
+                        ? sourceDistribution.find(s => s.source === selectedSourceForDrilldown)?.subSources || []
+                        : sourceDistribution
+                      ).map((entry, index) => (
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={[
+                            '#3B82F6', '#8B5CF6', '#EC4899', '#F97316', '#10B981',
+                            '#EAB308', '#6366F1', '#14B8A6', '#F43F5E', '#84CC16'
+                          ][index % 10]}
+                        />
+                      ))}
+                      <LabelList 
+                        dataKey="count" 
+                        position="top" 
+                        fill="#475569" 
+                        fontSize={12} 
+                        fontWeight="600"
+                      />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </ChartCard>
+            
+            {/* Pie Chart Section */}
+            <ChartCard
+              title={selectedSourceForDrilldown ? "Sub-source Distribution" : "Source Breakdown"}
+              icon={<PieChartIcon className="w-5 h-5 text-purple-600" />}
+              variant="glass"
+            >
+              <div className="h-[340px] flex flex-col items-center justify-center">
+                <div className="relative w-full h-[280px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={selectedSourceForDrilldown
+                          ? (sourceDistribution.find(s => s.source === selectedSourceForDrilldown)?.subSources || []).map((sub, idx) => ({
+                              name: sub.subSource,
+                              value: sub.count,
+                              fill: [
+                                '#3B82F6', '#8B5CF6', '#EC4899', '#F97316', '#10B981',
+                                '#EAB308', '#6366F1', '#14B8A6', '#F43F5E', '#84CC16'
+                              ][idx % 10]
+                            }))
+                          : sourceDistribution.map((item, idx) => ({
+                              name: item.source,
+                              value: item.count,
+                              fill: [
+                                '#3B82F6', '#8B5CF6', '#EC4899', '#F97316', '#10B981',
+                                '#EAB308', '#6366F1', '#14B8A6', '#F43F5E', '#84CC16'
+                              ][idx % 10]
+                            }))
+                        }
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={70}
+                        outerRadius={100}
+                        paddingAngle={0}
+                        dataKey="value"
+                      >
+                        {(selectedSourceForDrilldown
+                          ? sourceDistribution.find(s => s.source === selectedSourceForDrilldown)?.subSources || []
+                          : sourceDistribution
+                        ).map((entry, index) => (
+                          <Cell 
+                            key={`cell-${index}`} 
+                            fill={[
+                              '#3B82F6', '#8B5CF6', '#EC4899', '#F97316', '#10B981',
+                              '#EAB308', '#6366F1', '#14B8A6', '#F43F5E', '#84CC16'
+                            ][index % 10]}
+                          />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  
+                  {/* Center Text */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <div className="text-sm text-slate-500">{selectedSourceForDrilldown ? selectedSourceForDrilldown : 'Total Candidates'}</div>
+                    <div className="text-4xl font-bold text-slate-900">
+                      {selectedSourceForDrilldown
+                        ? sourceDistribution.find(s => s.source === selectedSourceForDrilldown)?.count || 0
+                        : filteredData.length
+                      }
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Legend with Percentages */}
+                <div className="w-full grid grid-cols-2 gap-x-6 gap-y-2 mt-4">
+                  {(selectedSourceForDrilldown
+                    ? (sourceDistribution.find(s => s.source === selectedSourceForDrilldown)?.subSources || []).map((sub, idx) => ({
+                        name: sub.subSource,
+                        count: sub.count,
+                        percentage: sourceDistribution.find(s => s.source === selectedSourceForDrilldown)!.count > 0
+                          ? Math.round((sub.count / sourceDistribution.find(s => s.source === selectedSourceForDrilldown)!.count) * 100)
+                          : 0,
+                        color: [
+                          '#3B82F6', '#8B5CF6', '#EC4899', '#F97316', '#10B981',
+                          '#EAB308', '#6366F1', '#14B8A6', '#F43F5E', '#84CC16'
+                        ][idx % 10]
+                      }))
+                    : sourceDistribution.map((item, idx) => ({
+                        name: item.source,
+                        count: item.count,
+                        percentage: item.percentage,
+                        color: [
+                          '#3B82F6', '#8B5CF6', '#EC4899', '#F97316', '#10B981',
+                          '#EAB308', '#6366F1', '#14B8A6', '#F43F5E', '#84CC16'
+                        ][idx % 10]
+                      }))
+                  ).slice(0, 6).map((item, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
+                      <span className="text-sm text-slate-700">
+                        {item.name}: <strong>{item.percentage}%</strong>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </ChartCard>
+          </div>
         </section>
         
         {/* Alerts Section */}

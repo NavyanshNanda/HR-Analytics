@@ -305,6 +305,108 @@ export default function HiringManagerDashboard({ data, hmName }: HiringManagerDa
           <PanelistPerformance panelists={panelistMetrics} />
         </section>
         
+        {/* Interview Rounds Summary */}
+        <section className="mb-8">
+          <h2 className="text-lg font-semibold text-slate-800 mb-4">Interview Rounds Summary</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* R1 Summary */}
+            <ChartCard
+              title="Round 1"
+              variant="glass"
+              className="border-l-4 border-blue-500"
+            >
+              <div className="space-y-2 pt-2">
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Cleared</span>
+                  <span className="font-medium text-green-600">{pipelineMetrics.r1Cleared}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Not Cleared</span>
+                  <span className="font-medium text-red-600">{pipelineMetrics.r1NotCleared}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Pending</span>
+                  <span className="font-medium text-yellow-600">{pipelineMetrics.r1Pending}</span>
+                </div>
+                <div className="pt-2 border-t border-slate-200">
+                  <div className="flex justify-between">
+                    <span className="text-slate-700 font-medium">Pass Rate</span>
+                    <span className="font-bold text-blue-600">
+                      {pipelineMetrics.r1Cleared + pipelineMetrics.r1NotCleared > 0
+                        ? ((pipelineMetrics.r1Cleared / (pipelineMetrics.r1Cleared + pipelineMetrics.r1NotCleared)) * 100).toFixed(1)
+                        : 0}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </ChartCard>
+            
+            {/* R2 Summary */}
+            <ChartCard
+              title="Round 2"
+              variant="glass"
+              className="border-l-4 border-purple-500"
+            >
+              <div className="space-y-2 pt-2">
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Cleared</span>
+                  <span className="font-medium text-green-600">{pipelineMetrics.r2Cleared}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Not Cleared</span>
+                  <span className="font-medium text-red-600">{pipelineMetrics.r2NotCleared}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Pending</span>
+                  <span className="font-medium text-yellow-600">{pipelineMetrics.r2Pending}</span>
+                </div>
+                <div className="pt-2 border-t border-slate-200">
+                  <div className="flex justify-between">
+                    <span className="text-slate-700 font-medium">Pass Rate</span>
+                    <span className="font-bold text-purple-600">
+                      {pipelineMetrics.r2Cleared + pipelineMetrics.r2NotCleared > 0
+                        ? ((pipelineMetrics.r2Cleared / (pipelineMetrics.r2Cleared + pipelineMetrics.r2NotCleared)) * 100).toFixed(1)
+                        : 0}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </ChartCard>
+            
+            {/* R3 Summary */}
+            <ChartCard
+              title="Round 3"
+              variant="glass"
+              className="border-l-4 border-orange-500"
+            >
+              <div className="space-y-2 pt-2">
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Cleared</span>
+                  <span className="font-medium text-green-600">{pipelineMetrics.r3Cleared}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Not Cleared</span>
+                  <span className="font-medium text-red-600">{pipelineMetrics.r3NotCleared}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Pending</span>
+                  <span className="font-medium text-yellow-600">{pipelineMetrics.r3Pending}</span>
+                </div>
+                <div className="pt-2 border-t border-slate-200">
+                  <div className="flex justify-between">
+                    <span className="text-slate-700 font-medium">Pass Rate</span>
+                    <span className="font-bold text-orange-600">
+                      {pipelineMetrics.r3Cleared + pipelineMetrics.r3NotCleared > 0
+                        ? ((pipelineMetrics.r3Cleared / (pipelineMetrics.r3Cleared + pipelineMetrics.r3NotCleared)) * 100).toFixed(1)
+                        : 0}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </ChartCard>
+          </div>
+        </section>
+        
         {/* System Alerts Section */}
         {totalAlerts > 0 && (
           <section className="mb-8" ref={systemAlertsRef}>

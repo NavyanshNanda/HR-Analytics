@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { CandidateRecord, DateFilters } from '@/lib/types';
-import { calculateRecruiterMetrics, calculateSourceDistribution } from '@/lib/calculations';
+import { calculateRecruiterMetrics, calculateSourceDistribution, calculatePipelineMetrics } from '@/lib/calculations';
 import { filterDataForRecruiter } from '@/lib/dataProcessing';
 import { DashboardHeader } from '@/components/layout/DashboardHeader';
 import { MetricCard, MetricCardGroup } from '@/components/ui/MetricCard';
@@ -11,10 +11,11 @@ import { SourceDistribution } from '@/components/charts/SourceDistribution';
 import { AlertBadge } from '@/components/ui/AlertBadge';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { formatDate, formatHoursToReadable, is48HourAlertTriggered, calculateTimeDifferenceHours } from '@/lib/utils';
-import { Users, UserCheck, AlertTriangle, TrendingUp, Percent, Search } from 'lucide-react';
+import { Users, UserCheck, AlertTriangle, TrendingUp, Percent, Search, BarChart3, PieChart as PieChartIcon, Clock } from 'lucide-react';
 import { DateFilter } from '@/components/ui/DateFilter';
 import { MultiSelectFilter } from '@/components/ui/MultiSelectFilter';
 import { FilterBadge } from '@/components/ui/FilterBadge';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList } from 'recharts';
 
 interface RecruiterDashboardProps {
   data: CandidateRecord[];
@@ -33,6 +34,7 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]);
   const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
+  const [selectedSourceForDrilldown, setSelectedSourceForDrilldown] = useState<string | null>(null);
   const [showCandidateTable, setShowCandidateTable] = useState(false);
   const candidateTableRef = React.useRef<HTMLDivElement>(null);
   
@@ -117,6 +119,11 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
   const metrics = useMemo(() => {
     return calculateRecruiterMetrics(filteredData, recruiterName);
   }, [filteredData, recruiterName]);
+  
+  // Calculate pipeline metrics for round summary
+  const pipelineMetrics = useMemo(() => {
+    return calculatePipelineMetrics(filteredData);
+  }, [filteredData]);
   
   // Calculate source distribution from filtered data
   const sourceDistribution = useMemo(() => {
@@ -308,62 +315,204 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
               icon={TrendingUp}
               color="purple"
             />
+            <MetricCard
+              title="Avg Sourcing to Screening"
+              value={formatHoursToReadable(metrics.avgSourcingToScreeningHours)}
+              subtitle="Processing time"
+              icon={Clock}
+              color={metrics.avgSourcingToScreeningHours > 48 ? "red" : "green"}
+            />
           </MetricCardGroup>
-        </section>
-        
-        {/* Screening Breakdown */}
-        <section className="mb-8">
-          <ChartCard
-            title="Screening Breakdown"
-            variant="glass"
-          >
-            <div className="grid grid-cols-3 gap-4">
-              <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
-                <p className="text-3xl font-bold text-green-700">{metrics.screeningCleared}</p>
-                <p className="text-sm text-green-600">Cleared</p>
-                <div className="mt-2 h-2 bg-green-200 rounded-full">
-                  <div 
-                    className="h-full bg-green-500 rounded-full"
-                    style={{ width: `${metrics.candidatesSourced > 0 ? (metrics.screeningCleared / metrics.candidatesSourced) * 100 : 0}%` }}
-                  />
-                </div>
-              </div>
-              <div className="text-center p-4 bg-red-50 rounded-lg border border-red-200">
-                <p className="text-3xl font-bold text-red-700">{metrics.screeningNotCleared}</p>
-                <p className="text-sm text-red-600">Not Cleared</p>
-                <div className="mt-2 h-2 bg-red-200 rounded-full">
-                  <div 
-                    className="h-full bg-red-500 rounded-full"
-                    style={{ width: `${metrics.candidatesSourced > 0 ? (metrics.screeningNotCleared / metrics.candidatesSourced) * 100 : 0}%` }}
-                  />
-                </div>
-              </div>
-              <div className="text-center p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                <p className="text-3xl font-bold text-yellow-700">{metrics.screeningInProgress}</p>
-                <p className="text-sm text-yellow-600">In Progress</p>
-                <div className="mt-2 h-2 bg-yellow-200 rounded-full">
-                  <div 
-                    className="h-full bg-yellow-500 rounded-full"
-                    style={{ width: `${metrics.candidatesSourced > 0 ? (metrics.screeningInProgress / metrics.candidatesSourced) * 100 : 0}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-            
-            <div className="mt-4 pt-4 border-t border-slate-200 text-center">
-              <p className="text-sm text-slate-500">
-                Average Sourcing to Screening Time: 
-                <span className={`ml-2 font-semibold ${metrics.avgSourcingToScreeningHours > 48 ? 'text-red-600' : 'text-green-600'}`}>
-                  {formatHoursToReadable(metrics.avgSourcingToScreeningHours)}
-                </span>
-              </p>
-            </div>
-          </ChartCard>
         </section>
         
         {/* Source Distribution */}
         <section className="mb-8">
-          <SourceDistribution data={sourceDistribution} title="My Source Distribution" />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Bar Chart Section */}
+            <ChartCard
+              title={selectedSourceForDrilldown ? `${selectedSourceForDrilldown} - Sub-sources` : "My Source Distribution"}
+              icon={<BarChart3 className="w-5 h-5 text-blue-600" />}
+              variant="glass"
+              action={selectedSourceForDrilldown ? (
+                <button
+                  onClick={() => setSelectedSourceForDrilldown(null)}
+                  className="px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium"
+                >
+                  ← Back to Sources
+                </button>
+              ) : undefined}
+            >
+              <div className="h-[340px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart 
+                    data={selectedSourceForDrilldown 
+                      ? (sourceDistribution.find(s => s.source === selectedSourceForDrilldown)?.subSources || []).map(sub => ({
+                          name: sub.subSource,
+                          count: sub.count,
+                          percentage: sourceDistribution.find(s => s.source === selectedSourceForDrilldown)!.count > 0
+                            ? Math.round((sub.count / sourceDistribution.find(s => s.source === selectedSourceForDrilldown)!.count) * 100)
+                            : 0
+                        }))
+                      : sourceDistribution.map(s => ({ name: s.source, count: s.count, percentage: s.percentage }))
+                    }
+                    margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+                    barSize={40}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis 
+                      dataKey="name" 
+                      tick={{ fontSize: 11 }}
+                      angle={-45}
+                      textAnchor="end"
+                      height={80}
+                    />
+                    <YAxis tick={{ fontSize: 12 }} />
+                    <Tooltip 
+                      contentStyle={{
+                        backgroundColor: 'rgba(255, 255, 255, 0.96)',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                      }}
+                    />
+                    <Bar 
+                      dataKey="count" 
+                      radius={[6, 6, 0, 0]}
+                      onClick={(data) => {
+                        if (!selectedSourceForDrilldown) {
+                          const sourceItem = sourceDistribution.find(s => s.source === data.name);
+                          if (sourceItem && sourceItem.subSources && sourceItem.subSources.length > 0) {
+                            setSelectedSourceForDrilldown(data.name);
+                          }
+                        }
+                      }}
+                      style={{ cursor: selectedSourceForDrilldown ? 'default' : 'pointer' }}
+                    >
+                      {(selectedSourceForDrilldown 
+                        ? sourceDistribution.find(s => s.source === selectedSourceForDrilldown)?.subSources || []
+                        : sourceDistribution
+                      ).map((entry, index) => (
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={[
+                            '#3B82F6', '#8B5CF6', '#EC4899', '#F97316', '#10B981',
+                            '#EAB308', '#6366F1', '#14B8A6', '#F43F5E', '#84CC16'
+                          ][index % 10]}
+                        />
+                      ))}
+                      <LabelList 
+                        dataKey="count" 
+                        position="top" 
+                        fill="#475569" 
+                        fontSize={12} 
+                        fontWeight="600"
+                      />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </ChartCard>
+            
+            {/* Pie Chart Section */}
+            <ChartCard
+              title={selectedSourceForDrilldown ? "Sub-source Distribution" : "Source Breakdown"}
+              icon={<PieChartIcon className="w-5 h-5 text-purple-600" />}
+              variant="glass"
+            >
+              <div className="h-[340px] flex flex-col items-center justify-center">
+                <div className="relative w-full h-[280px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={selectedSourceForDrilldown
+                          ? (sourceDistribution.find(s => s.source === selectedSourceForDrilldown)?.subSources || []).map((sub, idx) => ({
+                              name: sub.subSource,
+                              value: sub.count,
+                              fill: [
+                                '#3B82F6', '#8B5CF6', '#EC4899', '#F97316', '#10B981',
+                                '#EAB308', '#6366F1', '#14B8A6', '#F43F5E', '#84CC16'
+                              ][idx % 10]
+                            }))
+                          : sourceDistribution.map((item, idx) => ({
+                              name: item.source,
+                              value: item.count,
+                              fill: [
+                                '#3B82F6', '#8B5CF6', '#EC4899', '#F97316', '#10B981',
+                                '#EAB308', '#6366F1', '#14B8A6', '#F43F5E', '#84CC16'
+                              ][idx % 10]
+                            }))
+                        }
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={70}
+                        outerRadius={100}
+                        paddingAngle={0}
+                        dataKey="value"
+                      >
+                        {(selectedSourceForDrilldown
+                          ? sourceDistribution.find(s => s.source === selectedSourceForDrilldown)?.subSources || []
+                          : sourceDistribution
+                        ).map((entry, index) => (
+                          <Cell 
+                            key={`cell-${index}`} 
+                            fill={[
+                              '#3B82F6', '#8B5CF6', '#EC4899', '#F97316', '#10B981',
+                              '#EAB308', '#6366F1', '#14B8A6', '#F43F5E', '#84CC16'
+                            ][index % 10]}
+                          />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  
+                  {/* Center Text */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <div className="text-sm text-slate-500">{selectedSourceForDrilldown ? selectedSourceForDrilldown : 'Total Candidates'}</div>
+                    <div className="text-4xl font-bold text-slate-900">
+                      {selectedSourceForDrilldown
+                        ? sourceDistribution.find(s => s.source === selectedSourceForDrilldown)?.count || 0
+                        : filteredData.length
+                      }
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Legend with Percentages */}
+                <div className="w-full grid grid-cols-2 gap-x-6 gap-y-2 mt-4">
+                  {(selectedSourceForDrilldown
+                    ? (sourceDistribution.find(s => s.source === selectedSourceForDrilldown)?.subSources || []).map((sub, idx) => ({
+                        name: sub.subSource,
+                        count: sub.count,
+                        percentage: sourceDistribution.find(s => s.source === selectedSourceForDrilldown)!.count > 0
+                          ? Math.round((sub.count / sourceDistribution.find(s => s.source === selectedSourceForDrilldown)!.count) * 100)
+                          : 0,
+                        color: [
+                          '#3B82F6', '#8B5CF6', '#EC4899', '#F97316', '#10B981',
+                          '#EAB308', '#6366F1', '#14B8A6', '#F43F5E', '#84CC16'
+                        ][idx % 10]
+                      }))
+                    : sourceDistribution.map((item, idx) => ({
+                        name: item.source,
+                        count: item.count,
+                        percentage: item.percentage,
+                        color: [
+                          '#3B82F6', '#8B5CF6', '#EC4899', '#F97316', '#10B981',
+                          '#EAB308', '#6366F1', '#14B8A6', '#F43F5E', '#84CC16'
+                        ][idx % 10]
+                      }))
+                  ).slice(0, 6).map((item, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
+                      <span className="text-sm text-slate-700">
+                        {item.name}: <strong>{item.percentage}%</strong>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </ChartCard>
+          </div>
         </section>
         
         {/* Candidate Profiles Table */}
@@ -517,6 +666,108 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
             </div>
             )}
           </ChartCard>
+        </section>
+        
+        {/* Interview Rounds Summary */}
+        <section className="mb-8">
+          <h2 className="text-lg font-semibold text-slate-800 mb-4">Interview Rounds Summary</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* R1 Summary */}
+            <ChartCard
+              title="Round 1"
+              variant="glass"
+              className="border-l-4 border-blue-500"
+            >
+              <div className="space-y-2 pt-2">
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Cleared</span>
+                  <span className="font-medium text-green-600">{pipelineMetrics.r1Cleared}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Not Cleared</span>
+                  <span className="font-medium text-red-600">{pipelineMetrics.r1NotCleared}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Pending</span>
+                  <span className="font-medium text-yellow-600">{pipelineMetrics.r1Pending}</span>
+                </div>
+                <div className="pt-2 border-t border-slate-200">
+                  <div className="flex justify-between">
+                    <span className="text-slate-700 font-medium">Pass Rate</span>
+                    <span className="font-bold text-blue-600">
+                      {pipelineMetrics.r1Cleared + pipelineMetrics.r1NotCleared > 0
+                        ? ((pipelineMetrics.r1Cleared / (pipelineMetrics.r1Cleared + pipelineMetrics.r1NotCleared)) * 100).toFixed(1)
+                        : 0}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </ChartCard>
+            
+            {/* R2 Summary */}
+            <ChartCard
+              title="Round 2"
+              variant="glass"
+              className="border-l-4 border-purple-500"
+            >
+              <div className="space-y-2 pt-2">
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Cleared</span>
+                  <span className="font-medium text-green-600">{pipelineMetrics.r2Cleared}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Not Cleared</span>
+                  <span className="font-medium text-red-600">{pipelineMetrics.r2NotCleared}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Pending</span>
+                  <span className="font-medium text-yellow-600">{pipelineMetrics.r2Pending}</span>
+                </div>
+                <div className="pt-2 border-t border-slate-200">
+                  <div className="flex justify-between">
+                    <span className="text-slate-700 font-medium">Pass Rate</span>
+                    <span className="font-bold text-purple-600">
+                      {pipelineMetrics.r2Cleared + pipelineMetrics.r2NotCleared > 0
+                        ? ((pipelineMetrics.r2Cleared / (pipelineMetrics.r2Cleared + pipelineMetrics.r2NotCleared)) * 100).toFixed(1)
+                        : 0}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </ChartCard>
+            
+            {/* R3 Summary */}
+            <ChartCard
+              title="Round 3"
+              variant="glass"
+              className="border-l-4 border-orange-500"
+            >
+              <div className="space-y-2 pt-2">
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Cleared</span>
+                  <span className="font-medium text-green-600">{pipelineMetrics.r3Cleared}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Not Cleared</span>
+                  <span className="font-medium text-red-600">{pipelineMetrics.r3NotCleared}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Pending</span>
+                  <span className="font-medium text-yellow-600">{pipelineMetrics.r3Pending}</span>
+                </div>
+                <div className="pt-2 border-t border-slate-200">
+                  <div className="flex justify-between">
+                    <span className="text-slate-700 font-medium">Pass Rate</span>
+                    <span className="font-bold text-orange-600">
+                      {pipelineMetrics.r3Cleared + pipelineMetrics.r3NotCleared > 0
+                        ? ((pipelineMetrics.r3Cleared / (pipelineMetrics.r3Cleared + pipelineMetrics.r3NotCleared)) * 100).toFixed(1)
+                        : 0}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </ChartCard>
+          </div>
         </section>
       </main>
     </div>
