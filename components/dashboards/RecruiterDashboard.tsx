@@ -2,12 +2,13 @@
 
 import React, { useMemo, useState } from 'react';
 import { CandidateRecord, DateFilters } from '@/lib/types';
-import { calculateRecruiterMetrics, calculateSourceDistribution, calculatePipelineMetrics } from '@/lib/calculations';
+import { calculateRecruiterMetrics, calculateSourceDistribution, calculatePipelineMetrics, calculatePanelistMetrics, getPanelistsForHM } from '@/lib/calculations';
 import { filterDataForRecruiter } from '@/lib/dataProcessing';
 import { DashboardHeader } from '@/components/layout/DashboardHeader';
 import { MetricCard, MetricCardGroup } from '@/components/ui/MetricCard';
 import { ChartCard } from '@/components/ui/ChartCard';
 import { SourceDistribution } from '@/components/charts/SourceDistribution';
+import { PanelistPerformance } from '@/components/charts/PanelistPerformance';
 import { AlertBadge } from '@/components/ui/AlertBadge';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { formatDate, formatHoursToReadable, is48HourAlertTriggered, calculateTimeDifferenceHours } from '@/lib/utils';
@@ -137,6 +138,14 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
   const pipelineMetrics = useMemo(() => {
     return calculatePipelineMetrics(filteredData);
   }, [filteredData]);
+  
+  // Get unique panelists from filtered data
+  const panelists = useMemo(() => getPanelistsForHM(filteredData), [filteredData]);
+  
+  // Calculate metrics for each panelist
+  const panelistMetrics = useMemo(() => {
+    return panelists.map(panelist => calculatePanelistMetrics(filteredData, panelist));
+  }, [filteredData, panelists]);
   
   // Calculate source distribution from filtered data
   const sourceDistribution = useMemo(() => {
@@ -540,7 +549,7 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
         </section>
         
         {/* Candidate Profiles Table */}
-        <section ref={candidateTableRef}>
+        <section ref={candidateTableRef} className="mb-8">
           {showAlertsOnly && (
             <div className="mb-4 flex items-center gap-2">
               <FilterBadge
@@ -690,6 +699,11 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
             </div>
             )}
           </ChartCard>
+        </section>
+        
+        {/* Panelist Performance */}
+        <section className="mb-8">
+          <PanelistPerformance panelists={panelistMetrics} />
         </section>
         
         {/* Interview Rounds Summary */}
