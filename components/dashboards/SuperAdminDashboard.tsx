@@ -253,7 +253,7 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
   }, [data, filters, selectedHMs, selectedRecruiters, selectedPanelists, selectedSkills, selectedCandidates, selectedLocations]);
   
   const totalAlerts = recruiterAlerts.length + panelistAlerts.length;
-  const activeFilterCount = selectedHMs.length + selectedRecruiters.length + selectedPanelists.length + selectedSkills.length + selectedCandidates.length + selectedLocations.length;
+  const activeFilterCount = selectedHMs.length + selectedRecruiters.length + selectedPanelists.length + selectedSkills.length + selectedCandidates.length + selectedLocations.length + (categoryFilter ? 1 : 0);
   
   // Handle navigation to candidate when alert is clicked
   const handleAlertClick = (candidateName: string) => {
@@ -273,6 +273,7 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
   const handleBarClick = (category: string) => {
     setCategoryFilter(category as any);
     setCurrentPage(1); // Reset to first page
+    setShowCandidateTable(true); // Auto-expand table
     // Scroll to candidate table with offset for fixed header
     setTimeout(() => {
       if (candidateTableRef.current) {
@@ -281,6 +282,18 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
         window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
       }
     }, 100);
+  };
+  
+  const clearAllFilters = () => {
+    setFilters({});
+    setSelectedHMs([]);
+    setSelectedRecruiters([]);
+    setSelectedPanelists([]);
+    setSelectedSkills([]);
+    setSelectedCandidates([]);
+    setSelectedLocations([]);
+    resetCategoryFilter();
+    setCurrentPage(1);
   };
   
   const getCategoryFilterLabel = () => {
@@ -373,6 +386,16 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
               onChange={setSelectedLocations}
               placeholder="Filter by location"
             />
+            {activeFilterCount > 0 && (
+              <button
+                onClick={clearAllFilters}
+                className="px-4 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition-colors text-sm font-medium flex items-center gap-2 border border-red-200"
+                title="Clear all filters"
+              >
+                <X className="w-4 h-4" />
+                Clear All
+              </button>
+            )}
           </div>
         }
       />

@@ -18,7 +18,7 @@ import { ChartCard } from '@/components/ui/ChartCard';
 import { PanelistPerformance } from '@/components/charts/PanelistPerformance';
 import { CandidateFunnel } from '@/components/charts/CandidateFunnel';
 import { formatHoursToReadable, formatDate } from '@/lib/utils';
-import { Users, UserCheck, AlertTriangle, TrendingUp, CheckCircle, Target, TrendingDown } from 'lucide-react';
+import { Users, UserCheck, AlertTriangle, TrendingUp, CheckCircle, Target, TrendingDown, X } from 'lucide-react';
 import { useRef } from 'react';
 
 interface HiringManagerDashboardProps {
@@ -156,6 +156,15 @@ export default function HiringManagerDashboard({ data, hmName }: HiringManagerDa
   
   const activeFilterCount = selectedPanelists.length + selectedCandidates.length + selectedSkills.length + selectedLocations.length;
   
+  // Clear all filters
+  const clearAllFilters = () => {
+    setDateFilters({});
+    setSelectedPanelists([]);
+    setSelectedCandidates([]);
+    setSelectedSkills([]);
+    setSelectedLocations([]);
+  };
+  
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       <DashboardHeader
@@ -212,6 +221,16 @@ export default function HiringManagerDashboard({ data, hmName }: HiringManagerDa
               onChange={setSelectedLocations}
               placeholder="Filter by location"
             />
+            {activeFilterCount > 0 && (
+              <button
+                onClick={clearAllFilters}
+                className="px-4 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition-colors text-sm font-medium flex items-center gap-2 border border-red-200"
+                title="Clear all filters"
+              >
+                <X className="w-4 h-4" />
+                Clear All
+              </button>
+            )}
           </div>
         }
       />

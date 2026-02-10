@@ -18,7 +18,8 @@ import {
   AlertTriangle, 
   Clock,
   Search,
-  Filter
+  Filter,
+  X
 } from 'lucide-react';
 import { DateFilter } from '@/components/ui/DateFilter';
 import { MultiSelectFilter } from '@/components/ui/MultiSelectFilter';
@@ -98,7 +99,18 @@ export default function PanellistDashboard({ data, panelistName }: PanellistDash
   const activeFilterCount = 
     selectedSkills.length +
     selectedCandidates.length +
-    selectedLocations.length;
+    selectedLocations.length +
+    (showAlertsOnly ? 1 : 0);
+  
+  // Clear all filters
+  const clearAllFilters = () => {
+    setFilters({});
+    setSelectedSkills([]);
+    setSelectedCandidates([]);
+    setSelectedLocations([]);
+    setShowAlertsOnly(false);
+    setCurrentPage(1);
+  };
   
   // Calculate metrics from filtered data
   const metrics = useMemo(() => {
@@ -198,6 +210,7 @@ export default function PanellistDashboard({ data, panelistName }: PanellistDash
         onAlertClick={handleAlertClick}
         onBellClick={() => {
           setShowAlertsOnly(!showAlertsOnly);
+          setShowInterviewTable(true);
           setTimeout(() => {
             if (interviewTableRef.current) {
               const elementPosition = interviewTableRef.current.getBoundingClientRect().top + window.pageYOffset;
@@ -236,6 +249,16 @@ export default function PanellistDashboard({ data, panelistName }: PanellistDash
               onChange={setSelectedLocations}
               placeholder="Filter by location"
             />
+            {activeFilterCount > 0 && (
+              <button
+                onClick={clearAllFilters}
+                className="px-4 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition-colors text-sm font-medium flex items-center gap-2 border border-red-200"
+                title="Clear all filters"
+              >
+                <X className="w-4 h-4" />
+                Clear All
+              </button>
+            )}
           </div>
         }
       />

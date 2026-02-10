@@ -11,7 +11,7 @@ import { SourceDistribution } from '@/components/charts/SourceDistribution';
 import { AlertBadge } from '@/components/ui/AlertBadge';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { formatDate, formatHoursToReadable, is48HourAlertTriggered, calculateTimeDifferenceHours } from '@/lib/utils';
-import { Users, UserCheck, AlertTriangle, TrendingUp, Percent, Search, BarChart3, PieChart as PieChartIcon, Clock } from 'lucide-react';
+import { Users, UserCheck, AlertTriangle, TrendingUp, Percent, Search, BarChart3, PieChart as PieChartIcon, Clock, X } from 'lucide-react';
 import { DateFilter } from '@/components/ui/DateFilter';
 import { MultiSelectFilter } from '@/components/ui/MultiSelectFilter';
 import { FilterBadge } from '@/components/ui/FilterBadge';
@@ -113,7 +113,20 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
     selectedPanelists.length +
     selectedSkills.length +
     selectedCandidates.length +
-    selectedLocations.length;
+    selectedLocations.length +
+    (showAlertsOnly ? 1 : 0);
+  
+  // Clear all filters
+  const clearAllFilters = () => {
+    setFilters({});
+    setSelectedPanelists([]);
+    setSelectedSkills([]);
+    setSelectedCandidates([]);
+    setSelectedLocations([]);
+    setSelectedSourceForDrilldown(null);
+    setShowAlertsOnly(false);
+    setCurrentPage(1);
+  };
   
   // Calculate metrics from filtered data
   const metrics = useMemo(() => {
@@ -207,6 +220,7 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
         onAlertClick={handleAlertClick}
         onBellClick={() => {
           setShowAlertsOnly(!showAlertsOnly);
+          setShowCandidateTable(true);
           setTimeout(() => {
             if (candidateTableRef.current) {
               const elementPosition = candidateTableRef.current.getBoundingClientRect().top + window.pageYOffset;
@@ -252,6 +266,16 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
               onChange={setSelectedLocations}
               placeholder="Filter by location"
             />
+            {activeFilterCount > 0 && (
+              <button
+                onClick={clearAllFilters}
+                className="px-4 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition-colors text-sm font-medium flex items-center gap-2 border border-red-200"
+                title="Clear all filters"
+              >
+                <X className="w-4 h-4" />
+                Clear All
+              </button>
+            )}
           </div>
         }
       />
