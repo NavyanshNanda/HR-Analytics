@@ -31,7 +31,7 @@ export default function HiringManagerDashboard({ data, hmName }: HiringManagerDa
   const [dateFilters, setDateFilters] = useState<DateFilters>({});
   const [selectedPanelists, setSelectedPanelists] = useState<string[]>([]);
   const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]);
-  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [selectedDesignations, setSelectedDesignations] = useState<string[]>([]);
   const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
   const [showAllAlerts, setShowAllAlerts] = useState(false);
   const systemAlertsRef = useRef<HTMLDivElement>(null);
@@ -57,8 +57,8 @@ export default function HiringManagerDashboard({ data, hmName }: HiringManagerDa
       result = result.filter(r => selectedCandidates.includes(r.candidateName));
     }
     
-    if (selectedSkills.length > 0) {
-      result = result.filter(r => selectedSkills.includes(r.skill));
+    if (selectedDesignations.length > 0) {
+      result = result.filter(r => selectedDesignations.includes(r.designation));
     }
     
     if (selectedLocations.length > 0) {
@@ -66,7 +66,7 @@ export default function HiringManagerDashboard({ data, hmName }: HiringManagerDa
     }
     
     return result;
-  }, [hmData, dateFilters, selectedPanelists, selectedCandidates, selectedSkills, selectedLocations]);
+  }, [hmData, dateFilters, selectedPanelists, selectedCandidates, selectedDesignations, selectedLocations]);
   
   // Get unique values for filters
   const allPanelists = useMemo(() => {
@@ -81,8 +81,8 @@ export default function HiringManagerDashboard({ data, hmName }: HiringManagerDa
     return Array.from(new Set(hmData.map(r => r.candidateName).filter(Boolean))).sort();
   }, [hmData]);
   
-  const allSkills = useMemo(() => {
-    return Array.from(new Set(hmData.map(r => r.skill).filter(Boolean))).sort();
+  const allDesignations = useMemo(() => {
+    return Array.from(new Set(hmData.map(r => r.designation).filter(Boolean))).sort();
   }, [hmData]);
   
   const allLocations = useMemo(() => {
@@ -154,14 +154,14 @@ export default function HiringManagerDashboard({ data, hmName }: HiringManagerDa
   
   const totalAlerts = panelistAlerts.length;
   
-  const activeFilterCount = selectedPanelists.length + selectedCandidates.length + selectedSkills.length + selectedLocations.length;
+  const activeFilterCount = selectedPanelists.length + selectedCandidates.length + selectedDesignations.length + selectedLocations.length;
   
   // Clear all filters
   const clearAllFilters = () => {
     setDateFilters({});
     setSelectedPanelists([]);
     setSelectedCandidates([]);
-    setSelectedSkills([]);
+    setSelectedDesignations([]);
     setSelectedLocations([]);
   };
   
@@ -201,11 +201,11 @@ export default function HiringManagerDashboard({ data, hmName }: HiringManagerDa
               placeholder="Filter by panelist"
             />
             <MultiSelectFilter
-              label="Skills"
-              options={allSkills}
-              selected={selectedSkills}
-              onChange={setSelectedSkills}
-              placeholder="Filter by skill"
+              label="Designations"
+              options={allDesignations}
+              selected={selectedDesignations}
+              onChange={setSelectedDesignations}
+              placeholder="Filter by designation"
             />
             <MultiSelectFilter
               label="Candidates"
@@ -247,11 +247,11 @@ export default function HiringManagerDashboard({ data, hmName }: HiringManagerDa
                   onClear={() => setSelectedPanelists([])}
                 />
               )}
-              {selectedSkills.length > 0 && (
+              {selectedDesignations.length > 0 && (
                 <FilterBadge
-                  label="Skills"
-                  count={selectedSkills.length}
-                  onClear={() => setSelectedSkills([])}
+                  label="Designations"
+                  count={selectedDesignations.length}
+                  onClear={() => setSelectedDesignations([])}
                 />
               )}
               {selectedCandidates.length > 0 && (

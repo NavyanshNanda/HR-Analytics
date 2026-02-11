@@ -28,7 +28,7 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
   const [selectedHMs, setSelectedHMs] = useState<string[]>([]);
   const [selectedRecruiters, setSelectedRecruiters] = useState<string[]>([]);
   const [selectedPanelists, setSelectedPanelists] = useState<string[]>([]);
-  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [selectedDesignations, setSelectedDesignations] = useState<string[]>([]);
   const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]);
   const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -60,8 +60,8 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
       );
     }
     
-    if (selectedSkills.length > 0) {
-      result = result.filter(r => selectedSkills.includes(r.skill));
+    if (selectedDesignations.length > 0) {
+      result = result.filter(r => selectedDesignations.includes(r.designation));
     }
     
     if (selectedCandidates.length > 0) {
@@ -99,7 +99,7 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
     }
     
     return result;
-  }, [data, filters, selectedHMs, selectedRecruiters, selectedPanelists, selectedSkills, selectedCandidates, selectedLocations, categoryFilter]);
+  }, [data, filters, selectedHMs, selectedRecruiters, selectedPanelists, selectedDesignations, selectedCandidates, selectedLocations, categoryFilter]);
   
   // Get unique values for filters
   const allHMs = useMemo(() => {
@@ -118,8 +118,8 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
     ])).sort();
   }, [data]);
   
-  const allSkills = useMemo(() => {
-    return Array.from(new Set(data.map(r => r.skill).filter(Boolean))).sort();
+  const allDesignations = useMemo(() => {
+    return Array.from(new Set(data.map(r => r.designation).filter(Boolean))).sort();
   }, [data]);
   
   const allCandidates = useMemo(() => {
@@ -161,8 +161,8 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
         selectedPanelists.includes(r.panelistNameR3)
       );
     }
-    if (selectedSkills.length > 0) {
-      baseFiltered = baseFiltered.filter(r => selectedSkills.includes(r.skill));
+    if (selectedDesignations.length > 0) {
+      baseFiltered = baseFiltered.filter(r => selectedDesignations.includes(r.designation));
     }
     if (selectedCandidates.length > 0) {
       baseFiltered = baseFiltered.filter(r => selectedCandidates.includes(r.candidateName));
@@ -193,7 +193,7 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
     });
     
     return alerts;
-  }, [data, filters, selectedHMs, selectedRecruiters, selectedPanelists, selectedSkills, selectedCandidates, selectedLocations]);
+  }, [data, filters, selectedHMs, selectedRecruiters, selectedPanelists, selectedDesignations, selectedCandidates, selectedLocations]);
   
   // Calculate all panelist alerts (feedback delays)
   const panelistAlerts = useMemo(() => {
@@ -213,8 +213,8 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
         selectedPanelists.includes(r.panelistNameR3)
       );
     }
-    if (selectedSkills.length > 0) {
-      baseFiltered = baseFiltered.filter(r => selectedSkills.includes(r.skill));
+    if (selectedDesignations.length > 0) {
+      baseFiltered = baseFiltered.filter(r => selectedDesignations.includes(r.designation));
     }
     if (selectedCandidates.length > 0) {
       baseFiltered = baseFiltered.filter(r => selectedCandidates.includes(r.candidateName));
@@ -250,10 +250,10 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
     });
     
     return alerts;
-  }, [data, filters, selectedHMs, selectedRecruiters, selectedPanelists, selectedSkills, selectedCandidates, selectedLocations]);
+  }, [data, filters, selectedHMs, selectedRecruiters, selectedPanelists, selectedDesignations, selectedCandidates, selectedLocations]);
   
   const totalAlerts = recruiterAlerts.length + panelistAlerts.length;
-  const activeFilterCount = selectedHMs.length + selectedRecruiters.length + selectedPanelists.length + selectedSkills.length + selectedCandidates.length + selectedLocations.length + (categoryFilter ? 1 : 0);
+  const activeFilterCount = selectedHMs.length + selectedRecruiters.length + selectedPanelists.length + selectedDesignations.length + selectedCandidates.length + selectedLocations.length + (categoryFilter ? 1 : 0);
   
   // Handle navigation to candidate when alert is clicked
   const handleAlertClick = (candidateName: string) => {
@@ -289,7 +289,7 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
     setSelectedHMs([]);
     setSelectedRecruiters([]);
     setSelectedPanelists([]);
-    setSelectedSkills([]);
+    setSelectedDesignations([]);
     setSelectedCandidates([]);
     setSelectedLocations([]);
     resetCategoryFilter();
@@ -366,11 +366,11 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
               placeholder="Filter by panelist"
             />
             <MultiSelectFilter
-              label="Skills"
-              options={allSkills}
-              selected={selectedSkills}
-              onChange={setSelectedSkills}
-              placeholder="Filter by skill"
+              label="Designations"
+              options={allDesignations}
+              selected={selectedDesignations}
+              onChange={setSelectedDesignations}
+              placeholder="Filter by designation"
             />
             <MultiSelectFilter
               label="Candidates"
@@ -425,11 +425,11 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
                 onClear={() => setSelectedPanelists([])}
               />
             )}
-            {selectedSkills.length > 0 && (
+            {selectedDesignations.length > 0 && (
               <FilterBadge
-                label="Skills"
-                count={selectedSkills.length}
-                onClear={() => setSelectedSkills([])}
+                label="Designations"
+                count={selectedDesignations.length}
+                onClear={() => setSelectedDesignations([])}
               />
             )}
             {selectedCandidates.length > 0 && (

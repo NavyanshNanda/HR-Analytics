@@ -39,7 +39,7 @@ export default function PanellistDashboard({ data, panelistName }: PanellistDash
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
   const [filters, setFilters] = useState<DateFilters>({});
-  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [selectedDesignations, setSelectedDesignations] = useState<string[]>([]);
   const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]);
   const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
   const [showInterviewTable, setShowInterviewTable] = useState(false);
@@ -51,12 +51,12 @@ export default function PanellistDashboard({ data, panelistName }: PanellistDash
   }, [data, panelistName]);
   
   // Get all unique options for filters
-  const allSkills = useMemo(() => {
-    const skills = new Set<string>();
+  const allDesignations = useMemo(() => {
+    const designations = new Set<string>();
     panelistData.forEach(r => {
-      if (r.skill) skills.add(r.skill);
+      if (r.designation) designations.add(r.designation);
     });
-    return Array.from(skills).sort();
+    return Array.from(designations).sort();
   }, [panelistData]);
 
   const allCandidates = useMemo(() => {
@@ -82,8 +82,8 @@ export default function PanellistDashboard({ data, panelistName }: PanellistDash
       if (filters.screeningDateFrom && (!record.screeningDate || record.screeningDate < filters.screeningDateFrom)) return false;
       if (filters.screeningDateTo && (!record.screeningDate || record.screeningDate > filters.screeningDateTo)) return false;
       
-      // Skill filter
-      if (selectedSkills.length > 0 && !selectedSkills.includes(record.skill)) return false;
+      // Designation filter
+      if (selectedDesignations.length > 0 && !selectedDesignations.includes(record.designation)) return false;
       
       // Candidate filter
       if (selectedCandidates.length > 0 && !selectedCandidates.includes(record.candidateName)) return false;
@@ -93,11 +93,11 @@ export default function PanellistDashboard({ data, panelistName }: PanellistDash
       
       return true;
     });
-  }, [panelistData, filters, selectedSkills, selectedCandidates, selectedLocations]);
+  }, [panelistData, filters, selectedDesignations, selectedCandidates, selectedLocations]);
   
   // Active filter count
   const activeFilterCount = 
-    selectedSkills.length +
+    selectedDesignations.length +
     selectedCandidates.length +
     selectedLocations.length +
     (showAlertsOnly ? 1 : 0);
@@ -105,7 +105,7 @@ export default function PanellistDashboard({ data, panelistName }: PanellistDash
   // Clear all filters
   const clearAllFilters = () => {
     setFilters({});
-    setSelectedSkills([]);
+    setSelectedDesignations([]);
     setSelectedCandidates([]);
     setSelectedLocations([]);
     setShowAlertsOnly(false);
@@ -229,11 +229,11 @@ export default function PanellistDashboard({ data, panelistName }: PanellistDash
               showScreeningDate={true}
             />
             <MultiSelectFilter
-              label="Skills"
-              options={allSkills}
-              selected={selectedSkills}
-              onChange={setSelectedSkills}
-              placeholder="Filter by skill"
+              label="Designations"
+              options={allDesignations}
+              selected={selectedDesignations}
+              onChange={setSelectedDesignations}
+              placeholder="Filter by designation"
             />
             <MultiSelectFilter
               label="Candidates"
@@ -267,11 +267,11 @@ export default function PanellistDashboard({ data, panelistName }: PanellistDash
         {/* Filter Badges */}
         {activeFilterCount > 0 && (
           <div className="mb-6 flex flex-wrap gap-2">
-            {selectedSkills.length > 0 && (
+            {selectedDesignations.length > 0 && (
               <FilterBadge
-                label="Skills"
-                count={selectedSkills.length}
-                onClear={() => setSelectedSkills([])}
+                label="Designations"
+                count={selectedDesignations.length}
+                onClear={() => setSelectedDesignations([])}
               />
             )}
             {selectedCandidates.length > 0 && (

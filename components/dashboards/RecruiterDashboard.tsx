@@ -2,13 +2,14 @@
 
 import React, { useMemo, useState } from 'react';
 import { CandidateRecord, DateFilters } from '@/lib/types';
-import { calculateRecruiterMetrics, calculateSourceDistribution, calculatePipelineMetrics, calculatePanelistMetrics, getPanelistsForHM } from '@/lib/calculations';
+import { calculateRecruiterMetrics, calculateSourceDistribution, calculatePipelineMetrics, calculatePanelistMetrics, getPanelistsForHM, get5StagePipelineData } from '@/lib/calculations';
 import { filterDataForRecruiter } from '@/lib/dataProcessing';
 import { DashboardHeader } from '@/components/layout/DashboardHeader';
 import { MetricCard, MetricCardGroup } from '@/components/ui/MetricCard';
 import { ChartCard } from '@/components/ui/ChartCard';
 import { SourceDistribution } from '@/components/charts/SourceDistribution';
 import { PanelistPerformance } from '@/components/charts/PanelistPerformance';
+import { CandidateFunnel } from '@/components/charts/CandidateFunnel';
 import { AlertBadge } from '@/components/ui/AlertBadge';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { formatDate, formatHoursToReadable, is48HourAlertTriggered, calculateTimeDifferenceHours } from '@/lib/utils';
@@ -32,7 +33,7 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
   const itemsPerPage = 20;
   const [filters, setFilters] = useState<DateFilters>({});
   const [selectedPanelists, setSelectedPanelists] = useState<string[]>([]);
-  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [selectedDesignations, setSelectedDesignations] = useState<string[]>([]);
   const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]);
   const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
   const [selectedSourceForDrilldown, setSelectedSourceForDrilldown] = useState<string | null>(null);
@@ -55,12 +56,12 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
     return Array.from(panelists).sort();
   }, [recruiterData]);
 
-  const allSkills = useMemo(() => {
-    const skills = new Set<string>();
+  const allDesignations = useMemo(() => {
+    const designations = new Set<string>();
     recruiterData.forEach(r => {
-      if (r.skill) skills.add(r.skill);
+      if (r.designation) designations.add(r.designation);
     });
-    return Array.from(skills).sort();
+    return Array.from(designations).sort();
   }, [recruiterData]);
 
   const allCandidates = useMemo(() => {
@@ -96,8 +97,8 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
         if (!hasPanelist) return false;
       }
       
-      // Skill filter
-      if (selectedSkills.length > 0 && !selectedSkills.includes(record.skill)) return false;
+      // Designation filter
+      if (selectedDesignations.length > 0 && !selectedDesignations.includes(record.designation)) return false;
       
       // Candidate filter
       if (selectedCandidates.length > 0 && !selectedCandidates.includes(record.candidateName)) return false;
@@ -107,12 +108,12 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
       
       return true;
     });
-  }, [recruiterData, filters, selectedPanelists, selectedSkills, selectedCandidates, selectedLocations]);
+  }, [recruiterData, filters, selectedPanelists, selectedDesignations, selectedCandidates, selectedLocations]);
   
   // Active filter count
   const activeFilterCount = 
     selectedPanelists.length +
-    selectedSkills.length +
+    selectedDesignations.length +
     selectedCandidates.length +
     selectedLocations.length +
     (showAlertsOnly ? 1 : 0);
@@ -121,7 +122,7 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
   const clearAllFilters = () => {
     setFilters({});
     setSelectedPanelists([]);
-    setSelectedSkills([]);
+    setSelectedDesignations([]);
     setSelectedCandidates([]);
     setSelectedLocations([]);
     setSelectedSourceForDrilldown(null);
@@ -138,6 +139,11 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
   const pipelineMetrics = useMemo(() => {
     return calculatePipelineMetrics(filteredData);
   }, [filteredData]);
+  
+  // Get pipeline data for recruitment funnel chart
+  const pipelineData = useMemo(() => {
+    return get5StagePipelineData(pipelineMetrics);
+  }, [pipelineMetrics]);
   
   // Get unique panelists from filtered data
   const panelists = useMemo(() => getPanelistsForHM(filteredData), [filteredData]);
@@ -255,11 +261,11 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
               placeholder="Filter by panelist"
             />
             <MultiSelectFilter
-              label="Skills"
-              options={allSkills}
-              selected={selectedSkills}
-              onChange={setSelectedSkills}
-              placeholder="Filter by skill"
+              label="Designations"
+              options={allDesignations}
+              selected={selectedDesignations}
+              onChange={setSelectedDesignations}
+              placeholder="Filter by designation"
             />
             <MultiSelectFilter
               label="Candidates"
@@ -300,11 +306,11 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
                 onClear={() => setSelectedPanelists([])}
               />
             )}
-            {selectedSkills.length > 0 && (
+            {selectedDesignations.length > 0 && (
               <FilterBadge
-                label="Skills"
-                count={selectedSkills.length}
-                onClear={() => setSelectedSkills([])}
+                label="Designations"
+                count={selectedDesignations.length}
+                onClear={() => setSelectedDesignations([])}
               />
             )}
             {selectedCandidates.length > 0 && (
@@ -356,6 +362,125 @@ export default function RecruiterDashboard({ data, recruiterName }: RecruiterDas
               color={metrics.avgSourcingToScreeningHours > 48 ? "red" : "green"}
             />
           </MetricCardGroup>
+        </section>
+        
+        {/* Recruitment Pipeline and Status Distribution */}
+        <section className="mb-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Bar Chart Section */}
+            <ChartCard
+              title="Recruitment Pipeline"
+              icon={<BarChart3 className="w-5 h-5 text-blue-600" />}
+              variant="glass"
+            >
+              <CandidateFunnel
+                data={pipelineData}
+                onBarClick={() => {}}
+              />
+              
+              {/* Percentage Metrics */}
+              <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-slate-200/50">
+                <div className="text-center group">
+                  <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
+                    {pipelineMetrics.totalCandidates > 0 
+                      ? (((pipelineMetrics.totalCandidates - pipelineMetrics.screeningReject) / pipelineMetrics.totalCandidates) * 100).toFixed(1)
+                      : 0}%
+                  </div>
+                  <div className="text-sm text-slate-600 mt-1 font-medium">Screening Rate</div>
+                </div>
+                <div className="text-center group">
+                  <div className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                    {(pipelineMetrics.totalCandidates - pipelineMetrics.screeningReject) > 0
+                      ? (((pipelineMetrics.totalCandidates - pipelineMetrics.screeningReject - pipelineMetrics.rejected) / (pipelineMetrics.totalCandidates - pipelineMetrics.screeningReject)) * 100).toFixed(1)
+                      : 0}%
+                  </div>
+                  <div className="text-sm text-slate-600 mt-1 font-medium">Interview Success</div>
+                </div>
+                <div className="text-center group">
+                  <div className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                    {pipelineMetrics.totalCandidates > 0
+                      ? ((pipelineMetrics.joined / pipelineMetrics.totalCandidates) * 100).toFixed(1)
+                      : 0}%
+                  </div>
+                  <div className="text-sm text-slate-600 mt-1 font-medium">Overall Conversion</div>
+                </div>
+              </div>
+            </ChartCard>
+            
+            {/* Pie Chart Section */}
+            <ChartCard
+              title="Status Distribution"
+              icon={<PieChartIcon className="w-5 h-5 text-purple-600" />}
+              variant="glass"
+            >
+              <div className="h-[340px] flex flex-col items-center justify-center">
+                <div className="relative w-full h-[280px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={[
+                          { name: 'Screening Cleared', value: pipelineMetrics.totalCandidates - pipelineMetrics.screeningReject, fill: '#3B82F6' },
+                          { name: 'Interview Cleared', value: pipelineMetrics.totalCandidates - pipelineMetrics.screeningReject - pipelineMetrics.rejected, fill: '#F59E0B' },
+                          { name: 'Offered Candidates', value: pipelineMetrics.selected, fill: '#EF4444' },
+                          { name: 'Joined', value: pipelineMetrics.joined, fill: '#8B5CF6' },
+                        ]}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={70}
+                        outerRadius={100}
+                        paddingAngle={0}
+                        dataKey="value"
+                      >
+                        {[
+                          { name: 'Screening Cleared', value: pipelineMetrics.totalCandidates - pipelineMetrics.screeningReject, fill: '#3B82F6' },
+                          { name: 'Interview Cleared', value: pipelineMetrics.totalCandidates - pipelineMetrics.screeningReject - pipelineMetrics.rejected, fill: '#F59E0B' },
+                          { name: 'Offered Candidates', value: pipelineMetrics.selected, fill: '#EF4444' },
+                          { name: 'Joined', value: pipelineMetrics.joined, fill: '#8B5CF6' },
+                        ].map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.fill} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  
+                  {/* Center Text */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <div className="text-sm text-slate-500">Total Candidates</div>
+                    <div className="text-4xl font-bold text-slate-900">{pipelineMetrics.totalCandidates}</div>
+                  </div>
+                </div>
+                
+                {/* Legend with Percentages */}
+                <div className="w-full grid grid-cols-2 gap-x-6 gap-y-2 mt-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                    <span className="text-sm text-slate-700">
+                      Screening Cleared: <strong>{pipelineMetrics.totalCandidates > 0 ? (((pipelineMetrics.totalCandidates - pipelineMetrics.screeningReject) / pipelineMetrics.totalCandidates) * 100).toFixed(0) : 0}%</strong>
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-orange-500"></div>
+                    <span className="text-sm text-slate-700">
+                      Interview Cleared: <strong>{pipelineMetrics.totalCandidates > 0 ? (((pipelineMetrics.totalCandidates - pipelineMetrics.screeningReject - pipelineMetrics.rejected) / pipelineMetrics.totalCandidates) * 100).toFixed(0) : 0}%</strong>
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                    <span className="text-sm text-slate-700">
+                      Offered Candidates: <strong>{pipelineMetrics.totalCandidates > 0 ? ((pipelineMetrics.selected / pipelineMetrics.totalCandidates) * 100).toFixed(0) : 0}%</strong>
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-purple-500"></div>
+                    <span className="text-sm text-slate-700">
+                      Joined: <strong>{pipelineMetrics.totalCandidates > 0 ? ((pipelineMetrics.joined / pipelineMetrics.totalCandidates) * 100).toFixed(0) : 0}%</strong>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </ChartCard>
+          </div>
         </section>
         
         {/* Source Distribution */}
