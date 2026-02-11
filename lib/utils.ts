@@ -407,3 +407,111 @@ export function categorizeCandidateNew(record: CandidateRecord): {
   // Default: Other
   return { category: 'Other', rejectRound: null };
 }
+
+// TTH/TTF Alert Types
+export interface TTHAlert {
+  type: 'TTH';
+  candidateName: string;
+  designation: string;
+  recruiterName: string;
+  screeningDate: Date | null;
+  offerAcceptanceDate: Date | null;
+  daysElapsed: number;
+  expectedDays: 30;
+  isInProgress: boolean;
+}
+
+export interface TTFAlert {
+  type: 'TTF';
+  candidateName: string;
+  designation: string;
+  recruiterName: string;
+  hmDetails: string;
+  reqDate: Date | null;
+  offerAcceptanceDate: Date | null;
+  daysElapsed: number;
+  expectedDays: 60;
+  isInProgress: boolean;
+}
+
+// Calculate Time to Hire (TTH): Screening Date to Offer Acceptance Date
+export function calculateTTH(screeningDate: Date | null, offerAcceptanceDate: Date | null): number | null {
+  if (!screeningDate || !offerAcceptanceDate) return null;
+  
+  const diffTime = offerAcceptanceDate.getTime() - screeningDate.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  return diffDays;
+}
+
+// Calculate Time to Fill (TTF): Req Date to Offer Acceptance Date
+export function calculateTTF(reqDate: Date | null, offerAcceptanceDate: Date | null): number | null {
+  if (!reqDate || !offerAcceptanceDate || !offerAcceptanceDate) return null;
+  
+  const diffTime = offerAcceptanceDate.getTime() - reqDate.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  return diffDays;
+}
+
+// Check if TTH exceeds threshold (30 days)
+export function isTTHViolation(record: CandidateRecord): boolean {
+  const tth = calculateTTH(record.screeningDate, record.offerAcceptanceDate);
+  return tth !== null && tth > 30;
+}
+
+// Check if TTF exceeds threshold (60 days)
+export function isTTFViolation(record: CandidateRecord): boolean {
+  const ttf = calculateTTF(record.reqDate, record.offerAcceptanceDate);
+  return ttf !== null && ttf > 60;
+}
+
+// Get TTH alerts for a dataset
+export function getTTHAlerts(data: CandidateRecord[]): TTHAlert[] {
+  return data
+    .filter(record => {
+      // Must have screening date AND offer acceptance date (completed only)
+      if (!record.screeningDate || !record.offerAcceptanceDate) return false;
+      
+      // Check if completed with violation
+      const tth = calculateTTH(record.screeningDate, record.offerAcceptanceDate);
+      return tth !== null && tth > 30;
+    })
+    .map(record => ({
+      type: 'TTH' as const,
+      candidateName: record.candidateName,
+      designation: record.designation,
+      recruiterName: record.recruiterName,
+      screeningDate: record.screeningDate,
+      offerAcceptanceDate: record.offerAcceptanceDate,
+      daysElapsed: calculateTTH(record.screeningDate, record.offerAcceptanceDate) || 0,
+      expectedDays: 30,
+      isInProgress: false
+    }));
+}
+
+// Get TTF alerts for a dataset
+export function getTTFAlerts(data: CandidateRecord[]): TTFAlert[] {
+  return data
+    .filter(record => {
+      // Must have req date AND offer acceptance date (completed only)
+      if (!record.reqDate || !record.offerAcceptanceDate) return false;
+      
+      // Check if completed with violation
+      const ttf = calculateTTF(record.reqDate, record.offerAcceptanceDate);
+      return ttf !== null && ttf > 60;
+    })
+    .map(record => ({
+      type: 'TTF' as const,
+      candidateName: record.candidateName,
+      designation: record.designation,
+      recruiterName: record.recruiterName,
+      hmDetails: record.hmDetails,
+      reqDate: record.reqDate,
+      offerAcceptanceDate: record.offerAcceptanceDate,
+      daysElapsed: calculateTTF(record.reqDate, record.offerAcceptanceDate) || 0,
+      expectedDays: 60,
+      isInProgress: false
+    }));
+}
+

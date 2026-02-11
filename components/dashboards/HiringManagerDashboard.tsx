@@ -8,7 +8,7 @@ import {
   calculatePipelineMetrics
 } from '@/lib/calculations';
 import { filterDataForHiringManager } from '@/lib/dataProcessing';
-import { filterByDateRange } from '@/lib/utils';
+import { filterByDateRange, getTTFAlerts } from '@/lib/utils';
 import { DashboardHeader } from '@/components/layout/DashboardHeader';
 import { DateFilter } from '@/components/ui/DateFilter';
 import { MultiSelectFilter } from '@/components/ui/MultiSelectFilter';
@@ -152,7 +152,10 @@ export default function HiringManagerDashboard({ data, hmName }: HiringManagerDa
     return alerts.sort((a, b) => a.panelistName.localeCompare(b.panelistName));
   }, [panelistMetrics]);
   
-  const totalAlerts = panelistAlerts.length;
+  // Calculate TTF alerts (HM only sees TTF, not TTH)
+  const ttfAlerts = useMemo(() => getTTFAlerts(filteredData), [filteredData]);
+  
+  const totalAlerts = panelistAlerts.length + ttfAlerts.length;
   
   const activeFilterCount = selectedPanelists.length + selectedCandidates.length + selectedDesignations.length + selectedLocations.length;
   
@@ -427,11 +430,10 @@ export default function HiringManagerDashboard({ data, hmName }: HiringManagerDa
         </section>
         
         {/* System Alerts Section */}
-        {totalAlerts > 0 && (
-          <section className="mb-8" ref={systemAlertsRef}>
-            <ChartCard
-              title="System Alerts"
-              subtitle={`${totalAlerts} feedback delays requiring attention`}
+        <section className="mb-8" ref={systemAlertsRef}>
+          <ChartCard
+            title="System Alerts"
+            subtitle={totalAlerts > 0 ? `${totalAlerts} alert${totalAlerts !== 1 ? 's' : ''} requiring attention` : 'All systems running smoothly'}
               icon={<AlertTriangle className="w-5 h-5 text-orange-600" />}
               variant="elevated"
               action={
@@ -444,47 +446,99 @@ export default function HiringManagerDashboard({ data, hmName }: HiringManagerDa
               }
             >
               {showAllAlerts && (
-                <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="w-2 h-2 bg-orange-600 rounded-full animate-pulse"></div>
-                    <h4 className="font-semibold text-orange-800">
-                      Panellist Feedback Alerts ({totalAlerts})
-                    </h4>
-                  </div>
-                  <div className="space-y-2 max-h-96 overflow-y-auto">
-                    {panelistAlerts.map((alert, idx) => (
-                      <div
-                        key={idx}
-                        className="bg-white rounded-lg p-3 shadow-sm"
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-slate-800 truncate">{alert.panelistName}</p>
-                            <p className="text-xs text-slate-600 mt-0.5">
-                              {alert.candidateName} • Round: {alert.round}
-                            </p>
-                            <p className="text-xs text-slate-500 mt-1">
-                              Interview: {formatDate(alert.interviewDate)}
-                            </p>
+                <div className="space-y-6">
+                  {/* Panelist Feedback Alerts - Full Width */}
+                  <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-2 h-2 bg-orange-600 rounded-full animate-pulse"></div>
+                      <h4 className="font-semibold text-orange-800">
+                        Panellist Feedback Alerts ({panelistAlerts.length})
+                      </h4>
+                    </div>
+                    {panelistAlerts.length > 0 ? (
+                      <div className="space-y-2 max-h-96 overflow-y-auto">
+                        {panelistAlerts.map((alert, idx) => (
+                          <div
+                            key={idx}
+                            className="bg-white rounded-lg p-3 shadow-sm"
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-slate-800 truncate">{alert.panelistName}</p>
+                                <p className="text-xs text-slate-600 mt-0.5">
+                                  {alert.candidateName} • Round: {alert.round}
+                                </p>
+                                <p className="text-xs text-slate-500 mt-1">
+                                  Interview: {formatDate(alert.interviewDate)}
+                                </p>
+                              </div>
+                              {alert.isPending ? (
+                                <span className="text-xs font-semibold text-yellow-600 whitespace-nowrap ml-2">
+                                  Pending
+                                </span>
+                              ) : (
+                                <span className="text-xs font-semibold text-orange-600 whitespace-nowrap ml-2">
+                                  {alert.hours !== null ? formatHoursToReadable(alert.hours) : 'Delayed'}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          {alert.isPending ? (
-                            <span className="text-xs font-semibold text-yellow-600 whitespace-nowrap ml-2">
-                              Pending
-                            </span>
-                          ) : (
-                            <span className="text-xs font-semibold text-orange-600 whitespace-nowrap ml-2">
-                              {alert.hours !== null ? formatHoursToReadable(alert.hours) : 'Delayed'}
-                            </span>
-                          )}
-                        </div>
+                        ))}
                       </div>
-                    ))}
+                    ) : (
+                      <div className="text-center py-8 text-slate-500">
+                        <p className="text-sm">No panelist alerts at this time</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* TTF Alerts (Time to Fill) - Full Width */}
+                  <div className="bg-rose-50 rounded-lg p-4 border border-rose-200">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-2 h-2 bg-rose-600 rounded-full animate-pulse"></div>
+                      <h4 className="font-semibold text-rose-800">
+                        TTF Alerts ({ttfAlerts.length})
+                        <span className="text-xs font-normal text-rose-600 ml-1">&gt; 60 days</span>
+                      </h4>
+                    </div>
+                    {ttfAlerts.length > 0 ? (
+                      <div className="space-y-2 max-h-96 overflow-y-auto">
+                        {ttfAlerts.map((alert, idx) => (
+                          <div
+                            key={idx}
+                            className="bg-white rounded-lg p-3 shadow-sm"
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-slate-800 truncate">{alert.candidateName}</p>
+                                <p className="text-xs text-slate-600 mt-0.5">
+                                  {alert.designation}
+                                </p>
+                                <p className="text-xs text-slate-500 mt-1">
+                                  Req Date: {alert.reqDate ? formatDate(alert.reqDate) : 'N/A'}
+                                </p>
+                                <p className="text-xs text-slate-500">
+                                  Offer Accepted: {alert.offerAcceptanceDate ? formatDate(alert.offerAcceptanceDate) : 'N/A'}
+                                </p>
+                              </div>
+                              <div className="flex flex-col items-end">
+                                <span className="text-lg font-bold text-rose-600">{alert.daysElapsed}d</span>
+                                <span className="text-xs font-semibold text-rose-600">+{alert.daysElapsed - 60} over</span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-slate-500">
+                        <p className="text-sm">No TTF alerts at this time</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
             </ChartCard>
           </section>
-        )}
         
         {/* Quick Stats */}
         <section>

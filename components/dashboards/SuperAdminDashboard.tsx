@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { CandidateRecord, DateFilters, DashboardCategory } from '@/lib/types';
 import { calculatePipelineMetrics, calculateSourceDistribution, get5StagePipelineData, getRecruitersForHM, getPanelistsForHM, calculateRecruiterMetrics, calculatePanelistMetrics } from '@/lib/calculations';
-import { filterByDateRange, is48HourAlertTriggered, calculateTimeDifferenceHours, formatDate, formatHoursToReadable } from '@/lib/utils';
+import { filterByDateRange, is48HourAlertTriggered, calculateTimeDifferenceHours, formatDate, formatHoursToReadable, getTTHAlerts, getTTFAlerts } from '@/lib/utils';
 import { useFilterStore } from '@/store/userStore';
 import { DashboardHeader as OldDashboardHeader } from '@/components/ui/DashboardHeader';
 import { DashboardHeader } from '@/components/layout/DashboardHeader';
@@ -15,6 +15,7 @@ import { ChartCard } from '@/components/ui/ChartCard';
 import { CandidateFunnel } from '@/components/charts/CandidateFunnel';
 import { SourceDistribution } from '@/components/charts/SourceDistribution';
 import { FinalStatusBreakdown } from '@/components/charts/FinalStatusBreakdown';
+import { TimelineAlerts } from '@/components/ui/TimelineAlerts';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Users, UserCheck, UserX, Clock, TrendingUp, Calendar, Filter as FilterIcon, X, AlertTriangle, BarChart3, PieChart as PieChartIcon } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList } from 'recharts';
@@ -252,7 +253,11 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
     return alerts;
   }, [data, filters, selectedHMs, selectedRecruiters, selectedPanelists, selectedDesignations, selectedCandidates, selectedLocations]);
   
-  const totalAlerts = recruiterAlerts.length + panelistAlerts.length;
+  // Calculate TTH/TTF alerts
+  const tthAlerts = useMemo(() => getTTHAlerts(filteredData), [filteredData]);
+  const ttfAlerts = useMemo(() => getTTFAlerts(filteredData), [filteredData]);
+  
+  const totalAlerts = recruiterAlerts.length + panelistAlerts.length + tthAlerts.length + ttfAlerts.length;
   const activeFilterCount = selectedHMs.length + selectedRecruiters.length + selectedPanelists.length + selectedDesignations.length + selectedCandidates.length + selectedLocations.length + (categoryFilter ? 1 : 0);
   
   // Handle navigation to candidate when alert is clicked
@@ -793,11 +798,10 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
         </section>
         
         {/* Alerts Section */}
-        {totalAlerts > 0 && (
-          <section className="mb-8" ref={systemAlertsRef}>
-            <ChartCard
-              title="System Alerts"
-              subtitle={`${totalAlerts} active alerts requiring attention`}
+        <section className="mb-8" ref={systemAlertsRef}>
+          <ChartCard
+            title="System Alerts"
+            subtitle={totalAlerts > 0 ? `${totalAlerts} active alerts requiring attention` : 'All systems running smoothly'}
               icon={<AlertTriangle className="w-5 h-5 text-red-600" />}
               variant="elevated"
               action={
@@ -812,14 +816,14 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
               {showAllAlerts && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Recruiter Alerts */}
-                {recruiterAlerts.length > 0 && (
-                  <div className="bg-red-50 rounded-lg p-4 border border-red-200">
-                    <div className="flex items-center gap-2 mb-4">
-                      <div className="w-2 h-2 bg-red-600 rounded-full animate-pulse"></div>
-                      <h4 className="font-semibold text-red-800">
-                        Recruiter Sourcing-to-Screening Alerts ({recruiterAlerts.length})
-                      </h4>
-                    </div>
+                <div className="bg-red-50 rounded-lg p-4 border border-red-200">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-2 h-2 bg-red-600 rounded-full animate-pulse"></div>
+                    <h4 className="font-semibold text-red-800">
+                      Recruiter Sourcing-to-Screening Alerts ({recruiterAlerts.length})
+                    </h4>
+                  </div>
+                  {recruiterAlerts.length > 0 ? (
                     <div className="space-y-2 max-h-96 overflow-y-auto">
                       {recruiterAlerts.map((alert, idx) => (
                         <div
@@ -843,18 +847,22 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
                         </div>
                       ))}
                     </div>
-                  </div>
-                )}
+                  ) : (
+                    <div className="text-center py-8 text-slate-500">
+                      <p className="text-sm">No recruiter alerts at this time</p>
+                    </div>
+                  )}
+                </div>
                 
                 {/* Panelist Alerts */}
-                {panelistAlerts.length > 0 && (
-                  <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
-                    <div className="flex items-center gap-2 mb-4">
-                      <div className="w-2 h-2 bg-orange-600 rounded-full animate-pulse"></div>
-                      <h4 className="font-semibold text-orange-800">
-                        Panellist Feedback Alerts ({panelistAlerts.length})
-                      </h4>
-                    </div>
+                <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-2 h-2 bg-orange-600 rounded-full animate-pulse"></div>
+                    <h4 className="font-semibold text-orange-800">
+                      Panellist Feedback Alerts ({panelistAlerts.length})
+                    </h4>
+                  </div>
+                  {panelistAlerts.length > 0 ? (
                     <div className="space-y-2 max-h-96 overflow-y-auto">
                       {panelistAlerts.map((alert, idx) => (
                         <div
@@ -884,13 +892,107 @@ export default function SuperAdminDashboard({ data }: SuperAdminDashboardProps) 
                         </div>
                       ))}
                     </div>
+                  ) : (
+                    <div className="text-center py-8 text-slate-500">
+                      <p className="text-sm">No panelist alerts at this time</p>
+                    </div>
+                  )}
+                </div>
+                
+                {/* TTH Alerts */}
+                <div className="bg-amber-50 rounded-lg p-4 border border-amber-200">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-2 h-2 bg-amber-600 rounded-full animate-pulse"></div>
+                    <h4 className="font-semibold text-amber-800">
+                      Time to Hire (TTH) Alerts ({tthAlerts.length})
+                    </h4>
                   </div>
-                )}
+                  {tthAlerts.length > 0 ? (
+                    <div className="space-y-2 max-h-96 overflow-y-auto">
+                      {tthAlerts.map((alert, idx) => (
+                        <div
+                          key={idx}
+                          className="bg-white rounded-lg p-3 shadow-sm"
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-slate-800 truncate">{alert.candidateName}</p>
+                              <p className="text-xs text-slate-600 mt-0.5">
+                                {alert.designation} • Recruiter: {alert.recruiterName}
+                              </p>
+                              <div className="flex items-center gap-2 mt-1 text-xs text-slate-500">
+                                <span>Screening: {formatDate(alert.screeningDate)}</span>
+                                <span>→</span>
+                                <span>Offer: {formatDate(alert.offerAcceptanceDate)}</span>
+                              </div>
+                            </div>
+                            <div className="text-right ml-2">
+                              <span className="text-xs font-semibold text-amber-600 whitespace-nowrap block">
+                                {alert.daysElapsed} days
+                              </span>
+                              <span className="text-xs text-slate-500 whitespace-nowrap">
+                                +{alert.daysElapsed - alert.expectedDays} over
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-slate-500">
+                      <p className="text-sm">No TTH alerts at this time</p>
+                    </div>
+                  )}
+                </div>
+                
+                {/* TTF Alerts */}
+                <div className="bg-rose-50 rounded-lg p-4 border border-rose-200">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-2 h-2 bg-rose-600 rounded-full animate-pulse"></div>
+                    <h4 className="font-semibold text-rose-800">
+                      Time to Fill (TTF) Alerts ({ttfAlerts.length})
+                    </h4>
+                  </div>
+                  {ttfAlerts.length > 0 ? (
+                    <div className="space-y-2 max-h-96 overflow-y-auto">
+                      {ttfAlerts.map((alert, idx) => (
+                        <div
+                          key={idx}
+                          className="bg-white rounded-lg p-3 shadow-sm"
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-slate-800 truncate">{alert.candidateName}</p>
+                              <p className="text-xs text-slate-600 mt-0.5">
+                                {alert.designation} • HM: {alert.hmDetails}
+                              </p>
+                              <div className="flex items-center gap-2 mt-1 text-xs text-slate-500">
+                                <span>Req: {formatDate(alert.reqDate)}</span>
+                                <span>→</span>
+                                <span>Offer: {formatDate(alert.offerAcceptanceDate)}</span>
+                              </div>
+                            </div>
+                            <div className="text-right ml-2">
+                              <span className="text-xs font-semibold text-rose-600 whitespace-nowrap block">
+                                {alert.daysElapsed} days
+                              </span>
+                              <span className="text-xs text-slate-500 whitespace-nowrap">
+                                +{alert.daysElapsed - alert.expectedDays} over
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-slate-500">
+                      <p className="text-sm">No TTF alerts at this time</p>
+                    </div>
+                  )}
+                </div>
               </div>
-              )}
-            </ChartCard>
+              )}            </ChartCard>
           </section>
-        )}
         
         {/* Candidate Details Table */}
         <section className="mb-8" ref={candidateTableRef}>
